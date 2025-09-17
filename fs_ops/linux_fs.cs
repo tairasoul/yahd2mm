@@ -24,7 +24,10 @@ class FilesystemQueue : IFilesystemOperations {
               { }
               break;
             case OperationType.Delete:
-              File.Delete(operation.targets[0]);
+              if (File.Exists(operation.targets[0]))
+                File.Delete(operation.targets[0]);
+              else if (Directory.Exists(operation.targets[0]))
+                Directory.Delete(operation.targets[0]);
               break;
             case OperationType.Move:
               File.Move(operation.targets[0], operation.targets[1]);

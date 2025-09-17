@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.IO.Pipes;
 using System.Threading.Channels;
 
 namespace yahd2mm;
@@ -8,42 +6,6 @@ class WindowsFilesystemQueue : IFilesystemOperations {
   private readonly Channel<FilesystemOperation> operations = Channel.CreateUnbounded<FilesystemOperation>();
   private readonly Lock _lock = new();
   private readonly List<Task> _inProgressTasks = [];
-  private readonly NamedPipeClientStream client = new(".", "yahd2mmfs.pipe", PipeDirection.InOut);
-  private readonly BinaryWriter clientStreamOut;
-  private readonly BinaryReader clientStreamIn;
-
-  public WindowsFilesystemQueue() {
-    ConnectClient().Wait();
-    clientStreamOut = new(client);
-    clientStreamIn = new(client);
-  }
-
-  private async Task ConnectClient() {
-    await EntryPoint.UserKnowsUACIsForSymlinking;
-    try {
-      client.Connect(2);
-    }
-    catch (TimeoutException) {
-      ProcessStartInfo start = new()
-      {
-        FileName = Environment.ProcessPath,
-        Arguments = "--fs",
-        UseShellExecute = true,
-        CreateNoWindow = true,
-        WindowStyle = ProcessWindowStyle.Normal,
-        Verb = "runas"
-      };
-      Process.Start(start);
-      await ConnectClient();
-    }
-  }
-
-  private void Symlink(string path, string symTarget) {
-    clientStreamOut.Write(path);
-    clientStreamOut.Write(symTarget);
-    clientStreamOut.Flush();
-    clientStreamIn.ReadString();
-  }
 
   public void StartThread() {
     Task.Run(async () =>
@@ -62,13 +24,16 @@ class WindowsFilesystemQueue : IFilesystemOperations {
               { }
               break;
             case OperationType.Delete:
-              File.Delete(operation.targets[0]);
+              if (File.Exists(operation.targets[0]))
+                File.Delete(operation.targets[0]);
+              else if (Directory.Exists(operation.targets[0]))
+                Directory.Delete(operation.targets[0]);
               break;
             case OperationType.Move:
               File.Move(operation.targets[0], operation.targets[1]);
               break;
             case OperationType.CreateSymlink:
-              Symlink(operation.targets[1], operation.targets[0]);
+              File.Copy(operation.targets[0], operation.targets[1]);
               break;
           }
         });

@@ -13,8 +13,10 @@ class LocalFileHolder {
   }
 
   private void SetupWatcher() {
-    watcher = new(LocalFiles);
-    watcher.NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastAccess;
+    watcher = new(LocalFiles)
+    {
+      NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName | NotifyFilters.LastAccess
+    };
     watcher.Created += (_, args) =>
     {
       if (!localFiles.Contains(args.FullPath))

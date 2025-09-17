@@ -11,6 +11,7 @@ using System.IO.Pipes;
 using System.Text;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using System.Security.Principal;
 
 namespace yahd2mm;
 
@@ -66,14 +67,6 @@ partial class EntryPoint
     {
       StartManager();
     }
-    if (OperatingSystem.IsWindows()) {
-      UserKnowsUACIsForSymlinking = Task.Run(async () =>
-      {
-        while (!UserHasConfirmedUAC) {
-          await Task.Delay(500);
-        }
-      });
-    }
     Stopwatch stopwatch = Stopwatch.StartNew();
     float deltaTime = 0f;
     Vector3 clearColor = new(0f, 0f, 0f);
@@ -105,15 +98,14 @@ partial class EntryPoint
   }
 
   internal static bool SwitchToDownloads = false;
-  internal static bool UserHasConfirmedUAC = OperatingSystem.IsLinux();
-  internal static Task UserKnowsUACIsForSymlinking = null;
+  
   private static void DoUI()
   {
     ImGui.SetNextWindowSize(new Vector2(window.Width, window.Height));
     ImGui.SetNextWindowPos(new Vector2(0));
     ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 0f);
     ImGui.Begin("yahd2mm", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize);
-    if (!NeedsKey && !NeedsHD2DataPath && UserHasConfirmedUAC)
+    if (!NeedsKey && !NeedsHD2DataPath)
     {
       ImGui.BeginTabBar("Selection");
       if (ImGui.BeginTabItem("Mod List"))
@@ -175,28 +167,8 @@ partial class EntryPoint
       ImGui.OpenPopup("Key Prompt");
     }
     PromptForKey();
-    if (!NeedsHD2DataPath && !NeedsKey && !UserHasConfirmedUAC) {
-      ImGui.OpenPopup("Administrator Privileges");
-    }
-    DoSymlinkPopup();
     ImGui.End();
     ImGui.PopStyleVar(1);
-  }
-
-  private static void DoSymlinkPopup() {
-    ImGui.SetNextWindowPos(ImGui.GetMainViewport().GetCenter(), ImGuiCond.Always, new Vector2(0.5f, 0.5f));
-    if (ImGui.BeginPopupModal("Administrator Privileges", ImGuiWindowFlags.Popup | ImGuiWindowFlags.Modal | ImGuiWindowFlags.AlwaysAutoResize))
-    {
-      ImGui.Text("yahd2mm needs to launch a child process with admin privileges to create symlinks and correctly deploy mods.");
-      ImGui.Text("It cannot correctly deploy mods otherwise (copying is unimplemented).");
-      ImGui.Text("A prompt for admin privileges will appear soon after confirming.");
-      if (ImGui.Button("I understand."))
-      {
-        UserHasConfirmedUAC = true;
-        ImGui.CloseCurrentPopup();
-      }
-      ImGui.EndPopup();
-    }
   }
 
   private static void DoCompletedDownloads() {

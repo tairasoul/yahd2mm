@@ -14,7 +14,7 @@ uses ImGui.NET and Veldrid.SDL2 for rendering (the `Shaders` and `veldrid` direc
 
 will always prompt for nexus api key regardless of if you plan to use nxm integration
 
-uses symlinks, you'll have to give it permissions every time it runs on windows (will prompt you)
+uses symlinks on linux, copies files on windows (havent tested symlinks on windows yet)
 
 should work with most archive types, if one doesn't work extract it manually and go to %localappdata%\yahd2mm\mods on windows or ~/.local/share/yahd2mm/mods on linux and move the folder there, then restart (have yet to implement refreshing)
 
@@ -85,6 +85,8 @@ modpacks are not saved with a snapshot of everything active and the options, it'
 this tab is for files that do not let you download with a mod manager
 
 put any compressed archives in here and you can install them directly
+
+also works with already-extracted mod folders, will move them instead (because c# doesnt let you do Directory.Copy for some godforsaken reason)
 
 ## todo
 

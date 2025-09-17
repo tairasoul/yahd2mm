@@ -37,7 +37,15 @@ class Manager {
   }
 
   internal void InstallFile(string file) {
-    if (Directory.Exists(file)) return;
+    if (Directory.Exists(file)) {
+      DirectoryInfo info = new(file);
+      Directory.Move(file, Path.Join(ModManager.ModHolder, info.Name));
+      modManager.ProcessMod(Path.Join(ModManager.ModHolder, info.Name));
+      ArsenalMod[] mods = [.. modManager.mods ];
+      Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
+      modManager.mods = [.. mods];
+      return;
+    };
     try
     {
       using Stream stream = File.OpenRead(file);
@@ -173,8 +181,9 @@ class Manager {
     downloadManager.DownloadFinished += d;
   }
 
+  internal NamedPipeServerStream server = new("yahd2mm.pipe", PipeDirection.In);
+
   public void BeginListeningPipe() {
-    NamedPipeServerStream server = new("yahd2mm.pipe", PipeDirection.In);
     Task.Run(async () =>
     {
       while (true) {
