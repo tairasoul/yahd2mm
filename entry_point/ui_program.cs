@@ -600,9 +600,11 @@ partial class EntryPoint
       if (mod.Manifest.HasValue && mod.Manifest.Value.IconPath != null)
       {
         string path = Path.Join(ModManager.ModHolder, mod.FolderName, mod.Manifest.Value.IconPath);
-        DrawImage(path, new Vector2(100, 100));
-        DrawImageTooltip(path);
-        ImGui.SameLine();
+        bool succeeded = true;
+        succeeded = succeeded && DrawImage(path, new Vector2(100, 100));
+        succeeded = succeeded && DrawImageTooltip(path);
+        if (succeeded)
+          ImGui.SameLine();
       }
       ImGui.BeginGroup();
       bool enabled = ienabled;
@@ -674,9 +676,11 @@ partial class EntryPoint
       if (choice.IconPath != null)
       {
         string path = Path.Join(ModManager.ModHolder, mod.FolderName, choice.IconPath);
-        DrawImage(path, new Vector2(80, 80));
-        DrawImageTooltip(Path.Join(ModManager.ModHolder, mod.FolderName, choice.IconPath));
-        ImGui.SameLine();
+        bool succeeded = true;
+        succeeded = succeeded && DrawImage(path, new Vector2(100, 100));
+        succeeded = succeeded && DrawImageTooltip(path);
+        if (succeeded)
+          ImGui.SameLine();
       }
       ImGui.BeginGroup();
       if (choice.Description != null && choice.Description != "")
@@ -715,9 +719,11 @@ partial class EntryPoint
       if (choice.IconPath != null)
       {
         string path = Path.Join(ModManager.ModHolder, folderName, choice.IconPath);
-        DrawImage(path, new Vector2(80, 80));
-        DrawImageTooltip(Path.Join(ModManager.ModHolder, folderName, choice.IconPath));
-        ImGui.SameLine();
+        bool succeeded = true;
+        succeeded = succeeded && DrawImage(path, new Vector2(100, 100));
+        succeeded = succeeded && DrawImageTooltip(path);
+        if (succeeded)
+          ImGui.SameLine();
       }
       ImGui.BeginGroup();
       if (choice.Description != null && choice.Description != "")
@@ -741,15 +747,16 @@ partial class EntryPoint
     }
   }
 
-  private static void DrawImage(string path, Vector2 size) {
+  private static bool DrawImage(string path, Vector2 size) {
     IntPtr ptr = GetImagePointer(path);
-    if (ptr == IntPtr.Zero) return;
+    if (ptr == IntPtr.Zero) return false;
     ImGui.Image(ptr, size);
+    return true;
   }
 
-  private static void DrawImageTooltip(string path, ImGuiHoveredFlags flags = ImGuiHoveredFlags.None) {
+  private static bool DrawImageTooltip(string path, ImGuiHoveredFlags flags = ImGuiHoveredFlags.None) {
     IntPtr ptr = GetImagePointer(path);
-    if (ptr == IntPtr.Zero) return;
+    if (ptr == IntPtr.Zero) return false;
     if (ImGui.IsItemHovered(flags)) {
       Vector2 imageSize = TextureDimensions[path];
       Vector2 displaySize = ImGui.GetIO().DisplaySize;
@@ -796,6 +803,7 @@ partial class EntryPoint
       ImGui.Image(ptr, imgSize);
       ImGui.EndTooltip();
     }
+    return true;
   }
 
   private static string ResolveFilePath(string path) {
