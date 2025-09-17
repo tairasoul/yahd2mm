@@ -10,6 +10,7 @@ using FuzzySharp;
 using System.IO.Pipes;
 using System.Text;
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 
 namespace yahd2mm;
 
@@ -808,6 +809,8 @@ partial class EntryPoint
   }
 
   private static string ResolveFilePath(string path) {
+    if (File.Exists(path))
+      return path;
     FileInfo f = new(path);
     string fileName = f.Name.ToLower();
     foreach (string file in Directory.EnumerateFiles(f.DirectoryName!)) {
@@ -825,7 +828,9 @@ partial class EntryPoint
       if (path == string.Empty) return IntPtr.Zero;
       try
       {
-        ImageSharpTexture texture = new(path);
+        byte[] imageBytes = File.ReadAllBytes(path);
+        Image<Rgba32> img = Image.Load<Rgba32>(imageBytes);
+        ImageSharpTexture texture = new(img, false);
         TextureDimensions[filePath] = new Vector2(texture.Width, texture.Height);
         Texture deviceTex = texture.CreateDeviceTexture(gd, gd.ResourceFactory);
         IntPtr ptr = controller.GetOrCreateImGuiBinding(gd.ResourceFactory, deviceTex);
