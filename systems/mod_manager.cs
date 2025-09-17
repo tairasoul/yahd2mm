@@ -94,7 +94,7 @@ partial class ModManager {
 
   internal void ApplyPriorities() {
     string[] modList = mods.Where((v) => modState[v.Guid].Enabled).OrderBy((v) => Array.FindIndex(priorities, b => b == v.Guid)).Select((v) => v.Guid).ToArray();
-    foreach (string mod in modList)
+    foreach (string mod in modList.Reverse())
       DisableMod(mod);
     foreach (string mod in modList)
       EnableMod(mod);
