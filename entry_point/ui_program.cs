@@ -9,6 +9,7 @@ using Humanizer;
 using FuzzySharp;
 using System.IO.Pipes;
 using System.Text;
+using SixLabors.ImageSharp;
 
 namespace yahd2mm;
 
@@ -813,12 +814,18 @@ partial class EntryPoint
     if (!Textures.TryGetValue(filePath, out nint value)) {
       string path = ResolveFilePath(filePath);
       if (path == string.Empty) return IntPtr.Zero;
-      ImageSharpTexture texture = new(path);
-      TextureDimensions[filePath] = new Vector2(texture.Width, texture.Height);
-      Texture deviceTex = texture.CreateDeviceTexture(gd, gd.ResourceFactory);
-      IntPtr ptr = controller.GetOrCreateImGuiBinding(gd.ResourceFactory, deviceTex);
-      Textures[filePath] = ptr;
-      return ptr;
+      try
+      {
+        ImageSharpTexture texture = new(path);
+        TextureDimensions[filePath] = new Vector2(texture.Width, texture.Height);
+        Texture deviceTex = texture.CreateDeviceTexture(gd, gd.ResourceFactory);
+        IntPtr ptr = controller.GetOrCreateImGuiBinding(gd.ResourceFactory, deviceTex);
+        Textures[filePath] = ptr;
+        return ptr;
+      }
+      catch (UnknownImageFormatException) {
+        return IntPtr.Zero;
+      }
     }
     return value;
   }
