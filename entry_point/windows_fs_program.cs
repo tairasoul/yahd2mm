@@ -13,7 +13,7 @@ partial class EntryPoint {
       if (symlinker.IsConnected) {
         string path = reader.ReadString();
         string target = reader.ReadString();
-        File.CreateSymbolicLink(target, path);
+        File.CreateSymbolicLink(path, target);
         writer.Write("Created");
         writer.Flush();
       }
