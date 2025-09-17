@@ -27,6 +27,7 @@ partial class EntryPoint
     {
       Directory.CreateDirectory(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm"));
     }
+    Configuration.Default.PreferContiguousImageBuffers = true;
     bool existingClientExists = false;
     try
     {

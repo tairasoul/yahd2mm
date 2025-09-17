@@ -8,7 +8,7 @@ okay well i did (and it took surprisingly little time)
 
 should be compatible with Arsenal mods, manifest-less mods and mods that extract to a single file
 
-uses ImGui.NET and Veldrid.SDL2 for rendering (the `Shaders` and `veldrid` directories are from Veldrid.ImGui)
+uses ImGui.NET and Veldrid.SDL2 for rendering (the `Shaders` and `veldrid` directories are from Veldrid.ImGui and Veldrid.ImageSharp)
 
 ## notes
 
