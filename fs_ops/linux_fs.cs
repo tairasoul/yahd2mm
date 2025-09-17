@@ -3,9 +3,9 @@ using System.Threading.Channels;
 namespace yahd2mm;
 
 class FilesystemQueue : IFilesystemOperations {
-  private Channel<FilesystemOperation> operations = Channel.CreateUnbounded<FilesystemOperation>();
+  private readonly Channel<FilesystemOperation> operations = Channel.CreateUnbounded<FilesystemOperation>();
   private readonly Lock _lock = new();
-  private readonly List<Task> _inProgressTasks = new();
+  private readonly List<Task> _inProgressTasks = [];
 
   public void StartThread() {
     Task.Run(async () =>

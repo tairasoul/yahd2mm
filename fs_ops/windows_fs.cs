@@ -5,12 +5,12 @@ using System.Threading.Channels;
 namespace yahd2mm;
 
 class WindowsFilesystemQueue : IFilesystemOperations {
-  private Channel<FilesystemOperation> operations = Channel.CreateUnbounded<FilesystemOperation>();
+  private readonly Channel<FilesystemOperation> operations = Channel.CreateUnbounded<FilesystemOperation>();
   private readonly Lock _lock = new();
-  private readonly List<Task> _inProgressTasks = new();
-  private NamedPipeClientStream client = new(".", "yahd2mmfs.pipe", PipeDirection.InOut);
-  private BinaryWriter clientStreamOut;
-  private BinaryReader clientStreamIn;
+  private readonly List<Task> _inProgressTasks = [];
+  private readonly NamedPipeClientStream client = new(".", "yahd2mmfs.pipe", PipeDirection.InOut);
+  private readonly BinaryWriter clientStreamOut;
+  private readonly BinaryReader clientStreamIn;
 
   public WindowsFilesystemQueue() {
     ConnectClient().Wait();
