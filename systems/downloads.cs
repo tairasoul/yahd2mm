@@ -104,7 +104,7 @@ class DownloadManager {
     string constructed = $"https://api.nexusmods.com/v1/games/helldivers2/mods/{link.modId}/files/{link.fileId}/download_link.json?key={link.key}&expires={link.expires}";
     HttpRequestMessage request = new(HttpMethod.Get, constructed);
     request.Headers.Add("apikey", EntryPoint.APIKey);
-    request.Headers.Add("User-Agent", "yahd2mm/0.2.1 (Wayland; Linux x86_64; rv:142.0) .NET/9.0");
+    request.Headers.Add("User-Agent", "yahd2mm/0.2.1 .NET/9.0");
     HttpResponseMessage message = client.Send(request);
     string raw = await message.Content.ReadAsStringAsync();
     DownloadLinkAPIResponse[] response = JsonConvert.DeserializeObject<DownloadLinkAPIResponse[]>(raw)!;
@@ -116,7 +116,7 @@ class DownloadManager {
     string id = link.modId;
     string api_url = $"https://api.nexusmods.com/v1/games/helldivers2/mods/{id}.json";
     HttpRequestMessage request = new(HttpMethod.Get, api_url);
-    request.Headers.Add("User-Agent", "yahd2mm/0.2.1 (Wayland; Linux x86_64; rv:142.0) .NET/9.0");
+    request.Headers.Add("User-Agent", "yahd2mm/0.2.1 .NET/9.0");
     request.Headers.Add("apikey", EntryPoint.APIKey);
     HttpResponseMessage message = client.Send(request);
     string raw = await message.Content.ReadAsStringAsync();
