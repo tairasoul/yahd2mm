@@ -828,6 +828,7 @@ partial class EntryPoint
       if (path == string.Empty) return IntPtr.Zero;
       try
       {
+        // god knows why this is faster
         byte[] imageBytes = File.ReadAllBytes(path);
         Image<Rgba32> img = Image.Load<Rgba32>(imageBytes);
         ImageSharpTexture texture = new(img, false);
