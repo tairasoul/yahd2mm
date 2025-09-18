@@ -16,7 +16,7 @@ will always prompt for nexus api key regardless of if you plan to use nxm integr
 
 uses symlinks on linux, copies files on windows (havent tested symlinks on windows yet)
 
-should work with most archive types, if one doesn't work extract it manually and go to %localappdata%\yahd2mm\mods on windows or ~/.local/share/yahd2mm/mods on linux and move the folder there, then restart (have yet to implement refreshing)
+should work with most archive types, if one doesn't work extract it manually and put it into the folder for the local files tab
 
 setting this as your nxm handler will let you use this to download mods off nexus (might be buggy, requests might freeze sometimes)
 
