@@ -14,7 +14,7 @@ uses ImGui.NET and Veldrid.SDL2 for rendering (the `Shaders` and `veldrid` direc
 
 will always prompt for nexus api key regardless of if you plan to use nxm integration
 
-uses symlinks on linux, copies files on windows (havent tested symlinks on windows yet)
+uses symlinks on linux, hardlinks files on windows (symlinks need admin permissions and might be buggy i think)
 
 should work with most archive types, if one doesn't work extract it manually and put the resulting folder into the local files folder (make a folder for the mod if it's single-file)
 

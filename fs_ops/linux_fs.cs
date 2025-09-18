@@ -33,7 +33,7 @@ class FilesystemQueue : IFilesystemOperations {
               File.Move(operation.targets[0], operation.targets[1]);
               break;
             case OperationType.CreateSymlink:
-              File.CreateSymbolicLink(operation.targets[1], operation.targets[0]);
+              File.CreateSymbolicLink(operation.modifyOutput?.Invoke(operation.targets[1]) ?? operation.targets[1], operation.targets[0]);
               break;
           }
         });

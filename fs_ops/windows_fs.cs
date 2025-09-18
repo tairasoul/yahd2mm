@@ -1,11 +1,20 @@
+using System.Runtime.InteropServices;
 using System.Threading.Channels;
 
 namespace yahd2mm;
 
-class WindowsFilesystemQueue : IFilesystemOperations {
+partial class WindowsFilesystemQueue : IFilesystemOperations {
   private readonly Channel<FilesystemOperation> operations = Channel.CreateUnbounded<FilesystemOperation>();
   private readonly Lock _lock = new();
   private readonly List<Task> _inProgressTasks = [];
+
+  [DllImport("Kernel32.dll", CharSet = CharSet.Unicode)]
+  private static extern bool CreateHardLink
+  (
+    string lpFileName,
+    string lpExistingFileName,
+    IntPtr lpSecurityAttributes
+  );
 
   public void StartThread() {
     Task.Run(async () =>
@@ -33,11 +42,11 @@ class WindowsFilesystemQueue : IFilesystemOperations {
               File.Move(operation.targets[0], operation.targets[1]);
               break;
             case OperationType.CreateSymlink:
-              File.Copy(operation.targets[0], operation.targets[1]);
+              CreateHardLink(operation.modifyOutput?.Invoke(operation.targets[1]) ?? operation.targets[1], operation.targets[0], IntPtr.Zero);
+              //File.Copy(operation.targets[0], operation.targets[1]);
               break;
           }
         });
-
         lock (_lock)
         {
           _inProgressTasks.Add(task);
@@ -59,6 +68,7 @@ class WindowsFilesystemQueue : IFilesystemOperations {
       type = OperationType.CreateSymlink,
       targets = [path, target]
     });
+    WaitForEmpty();
   }
 
   public void CreateEmpty(string path, Func<string, string>? modifyOutput = null) {
@@ -68,6 +78,7 @@ class WindowsFilesystemQueue : IFilesystemOperations {
       targets = [path],
       modifyOutput = modifyOutput
     });
+    WaitForEmpty();
   }
 
   public void Copy(string from, string to, Func<string, string>? modifyOutput = null) {
@@ -77,6 +88,7 @@ class WindowsFilesystemQueue : IFilesystemOperations {
       targets = [from, to],
       modifyOutput = modifyOutput
     });
+    WaitForEmpty();
   }
 
   public void Delete(string file) {
@@ -85,6 +97,7 @@ class WindowsFilesystemQueue : IFilesystemOperations {
       type = OperationType.Delete,
       targets = [file]
     });
+    WaitForEmpty();
   }
 
   public void Move(string from, string to) {
@@ -93,9 +106,11 @@ class WindowsFilesystemQueue : IFilesystemOperations {
       type = OperationType.Move,
       targets = [from, to]
     });
+    WaitForEmpty();
   }
 
   public void WaitForEmpty() {
+    if (_inProgressTasks.Count == 0) return;
     List<Task> tasksToWaitFor;
     lock (_lock)
     {

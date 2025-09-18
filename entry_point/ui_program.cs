@@ -11,7 +11,6 @@ using System.IO.Pipes;
 using System.Text;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using System.Security.Principal;
 
 namespace yahd2mm;
 
@@ -23,6 +22,12 @@ partial class EntryPoint
   private static GraphicsDevice gd;
   private static CommandList cl;
   private static ImGuiRenderer controller;
+  private static bool IsAdministrator() {
+    if (OperatingSystem.IsWindows()) {
+      return Environment.IsPrivilegedProcess;
+    }
+    return true;
+  }
   public static void RunMain()
   {
     if (!Directory.Exists(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm")))
@@ -171,8 +176,36 @@ partial class EntryPoint
       ImGui.OpenPopup("Key Prompt");
     }
     PromptForKey();
+    /*if (!NeedsHD2DataPath && !NeedsHD2DataPath && !IsAdministrator()) {
+      ImGui.OpenPopup("Admin Permissions");
+    }*/
+    PromptForAdmin();
     ImGui.End();
     ImGui.PopStyleVar(1);
+  }
+
+
+
+  private static void PromptForAdmin()
+  {
+    ImGui.SetNextWindowPos(ImGui.GetMainViewport().GetCenter(), ImGuiCond.Always, new Vector2(0.5f, 0.5f));
+    if (ImGui.BeginPopupModal("Admin Permissions", ImGuiWindowFlags.Popup | ImGuiWindowFlags.Modal | ImGuiWindowFlags.AlwaysAutoResize))
+    {
+      ImGui.Text("yahd2mm needs to relaunch with admin permissions to correctly deploy mods.");
+      ImGui.Text("It will not function without doing so.");
+      if (ImGui.Button("I understand.")) {
+        manager.server.Dispose();
+        ProcessStartInfo info = new()
+        {
+          FileName = Environment.ProcessPath,
+          UseShellExecute = true,
+          Verb = "runas"
+        };
+        System.Diagnostics.Process.Start(info);
+        Environment.Exit(0);
+      }
+      ImGui.EndPopup();
+    }
   }
 
   private static readonly ConfigData data = Config.cfg;
@@ -257,7 +290,7 @@ partial class EntryPoint
   private static void DoLocalFiles() {
     if (ImGui.Button("Open Folder")) {
       if (OperatingSystem.IsWindows()) {
-        System.Diagnostics.Process.Start("explorer.exe", "/select," + $"\"{LocalFileHolder.LocalFiles}\"");
+        System.Diagnostics.Process.Start("explorer.exe", $"\"{LocalFileHolder.LocalFiles}\"");
       }
       else if (OperatingSystem.IsLinux()) {
         System.Diagnostics.Process.Start("xdg-open", $"\"{LocalFileHolder.LocalFiles}\"");
@@ -298,7 +331,9 @@ partial class EntryPoint
     ImGui.SameLine();
     if (ImGui.Button("Disable all mods"))
     {
-      foreach (ArsenalMod mod in manager.modManager.mods.ToList())
+      List<ArsenalMod> reversed = [.. manager.modManager.mods];
+      reversed.Reverse();
+      foreach (ArsenalMod mod in reversed)
       {
         manager.modManager.DisableMod(mod.Guid);
       }

@@ -101,9 +101,9 @@ partial class ModManager {
   }
 
   public void ActivateAllOptions(string mod) {
+    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices)) return;
     bool reactivate = modState[mod].Enabled;
     if (reactivate) DisableMod(mod);
-    ManifestChoices[] choices = processedChoices[mod];
     foreach (ManifestChoices choice in choices) {
       choice.Chosen = true;
       foreach (ManifestChoices c in choice.SubChoices ?? []) {
@@ -115,9 +115,9 @@ partial class ModManager {
   }
 
   public void DisableAllOptions(string mod) {
+    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices)) return;
     bool reactivate = modState[mod].Enabled;
     if (reactivate) DisableMod(mod);
-    ManifestChoices[] choices = processedChoices[mod];
     foreach (ManifestChoices choice in choices) {
       choice.Chosen = false;
       foreach (ManifestChoices c in choice.SubChoices ?? []) {
@@ -129,9 +129,9 @@ partial class ModManager {
   }
 
   public void EnableAllSubOptions(string mod) {
+    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices)) return;
     bool reactivate = modState[mod].Enabled;
     if (reactivate) DisableMod(mod);
-    ManifestChoices[] choices = processedChoices[mod];
     foreach (ManifestChoices choice in choices) {
       foreach (ManifestChoices c in choice.SubChoices ?? []) {
         c.Chosen = true;
@@ -142,9 +142,9 @@ partial class ModManager {
   }
 
   public void DisableAllSubOptions(string mod) {
+    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices)) return;
     bool reactivate = modState[mod].Enabled;
     if (reactivate) DisableMod(mod);
-    ManifestChoices[] choices = processedChoices[mod];
     foreach (ManifestChoices choice in choices) {
       foreach (ManifestChoices c in choice.SubChoices ?? []) {
         c.Chosen = false;
@@ -225,7 +225,7 @@ partial class ModManager {
       string baseN = m.Groups["base"].Value;
       string index = m.Groups["index"].Value;
       string ext = m.Groups["ext"].Value;
-      string dir = new FileInfo(file).Directory!.Name;
+      string dir = new FileInfo(file).Directory!.FullName;
       string key = $"{dir}|{baseN}|{index}";
       if (!patchSets.TryGetValue(key, out (string patch, string gpu, string stream) value)) {
         value = (null, null, null);
@@ -306,9 +306,13 @@ partial class ModManager {
       if (opt is JObject jobj)
       {
         ArsenalOption option = jobj.ToObject<ArsenalOption>();
-        files.AddRange(option.Include!);
+        foreach (string include in option.Include!) {
+          if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include)) continue;
+          files.Add(include);
+        }
       }
       else if (opt is string opti) {
+        if (string.IsNullOrEmpty(opti) || string.IsNullOrWhiteSpace(opti)) continue;
         files.Add(opti);
       }
     }
@@ -332,12 +336,16 @@ partial class ModManager {
         {
           if (option.SubOptions != null)
           {
-            EncounteredIncludes.AddRange(SubChoicesToIncludes(option.SubOptions));
-            files.AddRange(ProcessSubChoices(chosen, option.Name, option.SubOptions));
+            EncounteredIncludes.AddRange(SubChoicesToIncludes(option.SubOptions).Where((v) => !string.IsNullOrEmpty(v) && !string.IsNullOrWhiteSpace(v)));
+            foreach (string include in ProcessSubChoices(chosen, option.Name, option.SubOptions)) {
+              if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include)) continue;
+              files.Add(include);
+            }
           }
           if (option.Include != null && option.SubOptions != null)
           {
             foreach (string include in option.Include) {
+              if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include)) continue;
               bool redundant = IsIncludeRedundant(mod, include, EncounteredIncludes);
               if (!redundant) {
                 files.Add(include);
@@ -345,11 +353,15 @@ partial class ModManager {
             }
           }
           else if (option.Include != null) {
-            files.AddRange(option.Include);
+            foreach (string include in option.Include) {
+              if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include)) continue;
+              files.Add(include);
+            }
           }
         }
       }
       else if (opt is string opti) {
+        if (string.IsNullOrEmpty(opti) || string.IsNullOrWhiteSpace(opti)) continue;
         if (chosen.Contains(opti)) {
           files.Add(opti);
         }
@@ -574,15 +586,22 @@ partial class ModManager {
       }
       FileAssociation[] downgraded = [];
       List<string> existingPatches = Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success).ToList();
+      FileAssociation[] assoc = [];
       foreach (FileAssociation association in downgrading.Value.OrderBy((v) => v.PatchNumber)) {
         FileAssociation baseMod = association with { PatchNumber = highestPatchNumber + 1 };
+        assoc = [.. assoc, baseMod];
+        downgraded = [.. downgraded, baseMod];
+        highestPatchNumber++;
+      }
+      for (int i = 0; i < assoc.Length; i++)
+      {
         string[] newFiles = [];
-        foreach (string file in association.Files)
+        foreach (string file in assoc[i].Files)
         {
           EntryPoint.queue.Delete(file);
           existingPatches.Remove(file);
         }
-        ArsenalMod m = mods.First((v) => v.Guid == association.AssociatedMod);
+        ArsenalMod m = mods.First((v) => v.Guid == assoc[i].AssociatedMod);
         string[][] sets;
         if (m.Manifest.HasValue) {
           sets = ProcessChoicesIntoPatchSets(m);
@@ -598,9 +617,7 @@ partial class ModManager {
           }
           return set;
         })];
-        baseMod.Files = newFiles;
-        downgraded = [.. downgraded, baseMod];
-        highestPatchNumber++;
+        assoc[i].Files = newFiles;
       }
       FileAssociation[] combined = [.. withoutDowngraded, .. downgraded];
       fileRecords[downgrading.Key] = combined.Where((v) => v.AssociatedMod != mod.Guid).ToArray();
