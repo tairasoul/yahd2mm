@@ -58,19 +58,29 @@ class Manager {
         Overwrite = true
       });
       string[] files = [.. Directory.EnumerateFiles(outputDir), .. Directory.EnumerateDirectories(outputDir)];
+      string guid;
       if (files.Length == 1 && Directory.Exists(files[0]))
       {
         Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
         Directory.Delete(outputDir);
-        modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+        ArsenalMod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+
+        guid = m.Guid;
       }
       else
       {
-        modManager.ProcessMod(outputDir);
+        ArsenalMod m = modManager.ProcessMod(outputDir);
+        guid = m.Guid;
       }
       ArsenalMod[] mods = [ .. modManager.mods ];
       Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
       modManager.mods = [.. mods];
+      if (Config.cfg.ActivateOnInstall) {
+        modManager.EnableMod(guid);
+      }
+      if (Config.cfg.ActivateOptionsOnInstall) {
+        modManager.ActivateAllOptions(guid);
+      }
     }
     catch (InvalidFormatException) {
       using Stream stream = File.OpenRead(file);
@@ -79,19 +89,29 @@ class Manager {
       Directory.CreateDirectory(outputDir);
       archive.ExtractToDirectory(outputDir);
       string[] files = [.. Directory.EnumerateFiles(outputDir), .. Directory.EnumerateDirectories(outputDir)];
+      string guid;
       if (files.Length == 1 && Directory.Exists(files[0]))
       {
         Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
         Directory.Delete(outputDir);
-        modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+        ArsenalMod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+
+        guid = m.Guid;
       }
       else
       {
-        modManager.ProcessMod(outputDir);
+        ArsenalMod m = modManager.ProcessMod(outputDir);
+        guid = m.Guid;
       }
       ArsenalMod[] mods = [ .. modManager.mods ];
       Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
       modManager.mods = [.. mods];
+      if (Config.cfg.ActivateOnInstall) {
+        modManager.EnableMod(guid);
+      }
+      if (Config.cfg.ActivateOptionsOnInstall) {
+        modManager.ActivateAllOptions(guid);
+      }
     }
   }
 
@@ -119,21 +139,30 @@ class Manager {
           Overwrite = true
         });
         string[] files = [.. Directory.EnumerateFiles(outputDir), .. Directory.EnumerateDirectories(outputDir)];
-          if (files.Length == 1 && Directory.Exists(files[0]))
-          {
-            Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
-            Directory.Delete(outputDir);
-            ArsenalMod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
-            ModName = m.Name;
-          }
-          else
-          {
-            ArsenalMod m = modManager.ProcessMod(outputDir);
-            ModName = m.Name;
-          }
+        string guid;
+        if (files.Length == 1 && Directory.Exists(files[0]))
+        {
+          Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          Directory.Delete(outputDir);
+          ArsenalMod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          ModName = m.Name;
+          guid = m.Guid;
+        }
+        else
+        {
+          ArsenalMod m = modManager.ProcessMod(outputDir);
+          ModName = m.Name;
+          guid = m.Guid;
+        }
         ArsenalMod[] mods = [ .. modManager.mods ];
         Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
         modManager.mods = [.. mods];
+        if (Config.cfg.ActivateOnInstall) {
+          modManager.EnableMod(guid);
+        }
+        if (Config.cfg.ActivateOptionsOnInstall) {
+          modManager.ActivateAllOptions(guid);
+        }
       }
       catch (InvalidFormatException) {
         try
