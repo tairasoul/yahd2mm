@@ -155,6 +155,10 @@ partial class EntryPoint
         DoLocalFiles();
         ImGui.EndTabItem();
       }
+      if (ImGui.BeginTabItem("Settings")) {
+        DoSettings();
+        ImGui.EndTabItem();
+      }
       ImGui.EndTabBar();
     }
     if (NeedsHD2DataPath)
@@ -169,6 +173,17 @@ partial class EntryPoint
     PromptForKey();
     ImGui.End();
     ImGui.PopStyleVar(1);
+  }
+
+  private static readonly ConfigData data = Config.cfg;
+
+  private static void DoSettings() {
+    if (ImGui.Checkbox("Activate newly installed mods", ref data.ActivateOnInstall)) {
+      Config.SaveConfig();
+    }
+    if (ImGui.Checkbox("Activate all options on newly installed mods", ref data.ActivateOptionsOnInstall)) {
+      Config.SaveConfig();
+    }
   }
 
   private static void DoCompletedDownloads() {
@@ -385,6 +400,8 @@ partial class EntryPoint
               }
           }
         }
+        ImGui.SameLine();
+        ImGui.BeginGroup();
         if (ImGui.Button("Load modpack"))
         {
           manager.modpackManager.LoadModpack(packs.Key, manager.modManager);
@@ -393,6 +410,7 @@ partial class EntryPoint
         {
           manager.modpackManager.DeleteModpack(packs.Key);
         }
+        ImGui.EndGroup();
         ImGui.PopID();
         ImGui.Unindent();
         ImGui.Separator();
@@ -644,6 +662,20 @@ partial class EntryPoint
     if (manifest.Options == null) return;
     ManifestChoices[] choices = manager.modManager.processedChoices[mod.Guid];
     float remaining = ImGui.GetContentRegionAvail().X;
+    if (ImGui.Button("Enable all options and sub-options")) {
+      manager.modManager.ActivateAllOptions(mod.Guid);
+    }
+    ImGui.SameLine();
+    if (ImGui.Button("Disable all options and sub-options")) {
+      manager.modManager.DisableAllOptions(mod.Guid);
+    }
+    if (ImGui.Button("Enable all sub options")) {
+      manager.modManager.EnableAllSubOptions(mod.Guid);
+    }
+    ImGui.SameLine();
+    if (ImGui.Button("Disable all sub options")) {
+      manager.modManager.DisableAllSubOptions(mod.Guid);
+    }
     ImGui.BeginChild($"{mod.Guid}Choices", new(remaining, 400), ImGuiChildFlags.Borders, ImGuiWindowFlags.HorizontalScrollbar);
     foreach (ManifestChoices choice in choices) {
       ImGui.Text(choice.Name);

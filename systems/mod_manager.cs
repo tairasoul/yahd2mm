@@ -100,6 +100,60 @@ partial class ModManager {
       EnableMod(mod);
   }
 
+  public void ActivateAllOptions(string mod) {
+    bool reactivate = modState[mod].Enabled;
+    if (reactivate) DisableMod(mod);
+    ManifestChoices[] choices = processedChoices[mod];
+    foreach (ManifestChoices choice in choices) {
+      choice.Chosen = true;
+      foreach (ManifestChoices c in choice.SubChoices ?? []) {
+        c.Chosen = true;
+      }
+    }
+    if (reactivate) EnableMod(mod);
+    SaveData();
+  }
+
+  public void DisableAllOptions(string mod) {
+    bool reactivate = modState[mod].Enabled;
+    if (reactivate) DisableMod(mod);
+    ManifestChoices[] choices = processedChoices[mod];
+    foreach (ManifestChoices choice in choices) {
+      choice.Chosen = false;
+      foreach (ManifestChoices c in choice.SubChoices ?? []) {
+        c.Chosen = false;
+      }
+    }
+    if (reactivate) EnableMod(mod);
+    SaveData();
+  }
+
+  public void EnableAllSubOptions(string mod) {
+    bool reactivate = modState[mod].Enabled;
+    if (reactivate) DisableMod(mod);
+    ManifestChoices[] choices = processedChoices[mod];
+    foreach (ManifestChoices choice in choices) {
+      foreach (ManifestChoices c in choice.SubChoices ?? []) {
+        c.Chosen = true;
+      }
+    }
+    if (reactivate) EnableMod(mod);
+    SaveData();
+  }
+
+  public void DisableAllSubOptions(string mod) {
+    bool reactivate = modState[mod].Enabled;
+    if (reactivate) DisableMod(mod);
+    ManifestChoices[] choices = processedChoices[mod];
+    foreach (ManifestChoices choice in choices) {
+      foreach (ManifestChoices c in choice.SubChoices ?? []) {
+        c.Chosen = false;
+      }
+    }
+    if (reactivate) EnableMod(mod);
+    SaveData();
+  }
+
   public void EnableChoice(string mod, string path) {
     bool reactivate = modState[mod].Enabled;
     if (reactivate) DisableMod(mod);
