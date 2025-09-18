@@ -382,6 +382,7 @@ partial class EntryPoint
         {
           DoModpackMod(mod, packs.Key);
         }
+        ImGui.BeginGroup();
         if (ImGui.Button("Remove all mods"))
         {
           foreach (ModpackMod mod in packs.Value.mods)
@@ -400,6 +401,7 @@ partial class EntryPoint
               }
           }
         }
+        ImGui.EndGroup();
         ImGui.SameLine();
         ImGui.BeginGroup();
         if (ImGui.Button("Load modpack"))
