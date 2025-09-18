@@ -162,7 +162,47 @@ partial class ModManager {
     }
   }
 
-  private string[] ProcessChoicesIntoFilenames(ArsenalMod mod) {
+  private static string[][] ProcessFilenamesIntoPatchSets(List<string> filenames) {
+    Dictionary<string, (string patch, string gpu, string stream)> patchSets = [];
+    foreach (string file in filenames) {
+      string name = Path.GetFileName(file);
+      Match m = PatchInfoRegex.Match(name);
+      if (!m.Success) continue;
+      string baseN = m.Groups["base"].Value;
+      string index = m.Groups["index"].Value;
+      string ext = m.Groups["ext"].Value;
+      string dir = new FileInfo(file).Directory!.Name;
+      string key = $"{dir}|{baseN}|{index}";
+      if (!patchSets.TryGetValue(key, out (string patch, string gpu, string stream) value)) {
+        value = (null, null, null);
+        patchSets[key] = value;
+      }
+      var (patch, gpu, stream) = value;
+      if (string.IsNullOrEmpty(ext)) {
+        patch = file;
+      }
+      else if (ext == "stream") {
+        stream = file;
+      }
+      else if (ext == "gpu_resources") {
+        gpu = file;
+      }
+      patchSets[key] = (patch, gpu, stream);
+    }
+
+    string[][] result = patchSets.OrderBy(p => int.TryParse(p.Key.Split('|')[2], out int idx) ? idx : int.MaxValue).Select(p => {
+      var (patch, gpu, stream) = p.Value;
+      return new List<string>
+      {
+        patch,
+        stream,
+        gpu
+      }.Where(f => !string.IsNullOrEmpty(f)).ToArray();
+    }).ToArray();
+    return result;
+  }
+
+  private string[][] ProcessChoicesIntoPatchSets(ArsenalMod mod) {
     string BasePath = Path.Join(ModHolder, mod.FolderName);
     ArsenalManifest manifest = mod.Manifest!.Value;
     List<string> filenames = [];
@@ -192,7 +232,7 @@ partial class ModManager {
         }
       }
     }
-    return [.. filenames];
+    return ProcessFilenamesIntoPatchSets(filenames);
   }
 
   private static string[] GetFolderRecursively(string path) {
@@ -298,161 +338,105 @@ partial class ModManager {
     return [.. Choices];
   }
 
-  internal static readonly Regex FileNumRegex = MyRegex();
-  private static readonly Regex PatchAtEndRegex = IsPatchFile();
-
-  private static string GetFirstValidPatchName(string patch) {
-    string pathName = FileNumRegex.Replace(Path.Join(EntryPoint.HD2Path, new FileInfo(patch).Name), "0");
-    while (File.Exists(pathName)) {
-      Match match = FileNumRegex.Match(pathName);
-      int num = int.Parse(match.Value);
-      string replaced = FileNumRegex.Replace(pathName, (num + 1).ToString());
-      pathName = replaced;
+  internal static readonly Regex FileNumRegex = IsPatch();
+  internal static readonly Regex PatchAtEndRegex = IsPatchFile();
+  internal static readonly Regex GPUResourcesRegex = IsGPUResources();
+  internal static readonly Regex StreamRegex = IsStream();
+  internal static readonly Regex PatchInfoRegex = GrabPatchInfo();
+  
+  private static string[] GetFirstValidPatchSet(string[] set, int patchNum, List<string> existing) {
+    string[] sset = set.Select((v) => Path.Join(EntryPoint.HD2Path, new FileInfo(v).Name)).ToArray();
+    string[] extraChecks = [];
+    if (!sset.Any((v) => PatchAtEndRegex.Match(v).Success)) {
+      string name = sset.First();
+      string basename = name[..name.IndexOf('.')];
+      extraChecks = [ .. extraChecks, basename + ".patch_" + patchNum.ToString()];
     }
-    return pathName;
-  }
-
-  private static string GetFirstValidPatchName(string patch, List<string> existingPatch) {
-    string pathName = FileNumRegex.Replace(Path.Join(EntryPoint.HD2Path, new FileInfo(patch).Name), "0");
-    while (existingPatch.Contains(pathName)) {
-      Match match = FileNumRegex.Match(pathName);
-      int num = int.Parse(match.Value);
-      string replaced = FileNumRegex.Replace(pathName, (num + 1).ToString());
-      pathName = replaced;
+    if (!sset.Any(GPUResourcesRegex.IsMatch)) {
+      string name = sset.FirstOrDefault((v) => PatchAtEndRegex.Match(v!).Success, null) ?? extraChecks.First((v) => PatchAtEndRegex.Match(v).Success);
+      extraChecks = [.. extraChecks, name + ".gpu_resources"];
     }
-    return pathName;
+    if (!sset.Any(StreamRegex.IsMatch)) {
+      string name = sset.FirstOrDefault((v) => PatchAtEndRegex.Match(v!).Success, null) ?? extraChecks.First((v) => PatchAtEndRegex.Match(v).Success);
+      extraChecks = [.. extraChecks, name + ".stream"];
+    }
+    int currentPatch = patchNum - 1;
+    while (sset.Any(existing.Contains) || extraChecks.Any(existing.Contains)) {
+      sset = sset.Select((v) => FileNumRegex.Replace(v, (currentPatch + 1).ToString())).ToArray();
+      extraChecks = extraChecks.Select((v) => FileNumRegex.Replace(v, (currentPatch + 1).ToString())).ToArray();
+      currentPatch++;
+    }
+    return sset;
   }
 
   public void EnableMod(string name) {
     ModJson state = modState[name];
     if (state.Enabled) return;
     ArsenalMod mod = mods.First((m) => m.Guid == name);
-    string[] filenames;
-    if (mod.Manifest.HasValue)
-    {
-      filenames = ProcessChoicesIntoFilenames(mod);
+    string[][] filenames;
+    if (mod.Manifest.HasValue) {
+      filenames = ProcessChoicesIntoPatchSets(mod);
     }
     else {
-      filenames = mod.Files!;
+      filenames = ProcessFilenamesIntoPatchSets([.. mod.Files!]);
     }
-    Dictionary<string, string> basenames = [];
-    foreach (string filename in filenames) {
-      string fileName = new FileInfo(filename).Name;
-      string withoutExt = fileName.Contains('.') ? fileName[..fileName.IndexOf('.')] : fileName;   
-      basenames[filename] = withoutExt;
+    Dictionary<string[], string> basenames = [];
+    foreach (string[] set in filenames) {
+      string first = set.First();
+      string fname = new FileInfo(first).Name;
+      string withoutExt = fname.Contains('.') ? fname[..fname.IndexOf('.')] : fname;
+      basenames[set] = withoutExt;
     }
-    Dictionary<string, string[]> nextAssoc = [];
-    foreach (string filename in filenames) {
-      string basename = basenames[filename];
-      FileAssociation[] associations = fileRecords.TryGetValue(basename, out FileAssociation[]? value) ? value : [];
-      if (nextAssoc.TryGetValue(basename, out string[] tuple)) {
-        tuple = [.. tuple, filename];
-        nextAssoc[basename] = tuple;
+    Dictionary<string, string[][]> nextAssoc = [];
+    foreach (string[] set in filenames) {
+      string basename = basenames[set];
+      if (nextAssoc.TryGetValue(basename, out string[][] tsets))
+      {
+        tsets = [.. tsets, set];
+        nextAssoc[basename] = tsets;
       }
       else {
-        nextAssoc[basename] = [filename];
+        nextAssoc[basename] = [set];
       }
     }
-    foreach (KeyValuePair<string, string[]> pair in nextAssoc) {
-      if (fileRecords.TryGetValue(pair.Key, out FileAssociation[]? existing)) {
-        if (existing.Where((v) => v.AssociatedMod == name).FirstOrDefault(new FileAssociation() { AssociatedMod = "NoValidModFoundFirstOrDefault"}).AssociatedMod != "NoValidModFoundFirstOrDefault") {
+    foreach (KeyValuePair<string, string[][]> pair in nextAssoc) {
+      List<string> existingPatches = Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success).ToList();
+      if (fileRecords.TryGetValue(pair.Key, out FileAssociation[]? existing))
+      {
+        if (existing.Where((v) => v.AssociatedMod == name).FirstOrDefault(new FileAssociation() { AssociatedMod = "NoValidModFoundOrDefault" }).AssociatedMod != "NoValidModFoundOrDefault")
+        {
           continue;
-        };
-        string[] notFound = [];
-        foreach (string file in pair.Value) {
-          if (FileNumRegex.Match(file).Success) {
-            if (PatchAtEndRegex.Match(file).Success)
-            {
-              if (!pair.Value.Contains(file + ".stream"))
-              {
-                notFound = [.. notFound, file + ".stream"];
-              }
-              if (!pair.Value.Contains(file + ".gpu_resources"))
-              {
-                notFound = [.. notFound, file + ".gpu_resources"];
-              }
-            }
-            else {
-              if (!pair.Value.Contains(Path.Join(new FileInfo(file).DirectoryName, Path.GetFileNameWithoutExtension(file))) && !notFound.Contains(Path.Join(new FileInfo(file).DirectoryName, Path.GetFileNameWithoutExtension(file)))) {
-                notFound = [.. notFound, Path.GetFileNameWithoutExtension(file)];
-              }
-            }
-          }
         }
-        notFound = notFound.Where((v) => !pair.Value.Contains(v)).ToArray();
-        string[] toAdd = [];
-        List<string> existingPatches = Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success).ToList();
-        List<string> copy = [.. existingPatches];
-        foreach (string unfound in notFound) {
-          string patch = GetFirstValidPatchName(unfound, [ .. existingPatches, ..pair.Value.Select((v) => {
-            string patch = GetFirstValidPatchName(v, copy);
-            copy.Add(patch);
-            return patch;
-          })]);
-          existingPatches.Add(patch);
-          EntryPoint.queue.CreateEmpty(patch);
-          toAdd = [.. toAdd, patch];
-        }
-        FileAssociation association = new()
+        FileAssociation assoc = new()
         {
           AssociatedMod = name,
-          Files = [..pair.Value.Select((v) => {
-            string p = GetFirstValidPatchName(v, existingPatches);
-            existingPatches.Add(p);
-            EntryPoint.queue.CreateSymbolicLink(v, p);
-            return p;
-          }).ToArray(), ..toAdd]
+          Files = [..pair.Value.SelectMany((v, index) => {
+            string[] set = GetFirstValidPatchSet(v, index, existingPatches);
+            existingPatches.AddRange(set);
+            for (int i = 0; i < v.Length; i++) {
+              EntryPoint.queue.CreateSymbolicLink(v[i], set[i]);
+            }
+            return set;
+          })]
         };
-        existing = [.. existing, association with { PatchNumber = existing.Length }];
+        existing = [.. existing, assoc with { PatchNumber = existing.Length }];
         fileRecords[pair.Key] = existing;
       }
       else {
-        string[] notFound = [];
-        foreach (string file in pair.Value) {
-          if (FileNumRegex.Match(file).Success) {
-            if (PatchAtEndRegex.Match(file).Success)
-            {
-              if (!pair.Value.Contains(file + ".stream"))
-              {
-                notFound = [.. notFound, file + ".stream"];
-              }
-              if (!pair.Value.Contains(file + ".gpu_resources"))
-              {
-                notFound = [.. notFound, file + ".gpu_resources"];
-              }
-            }
-            else {
-              if (!pair.Value.Contains(Path.Join(new FileInfo(file).DirectoryName, Path.GetFileNameWithoutExtension(file))) && !notFound.Contains(Path.Join(new FileInfo(file).DirectoryName, Path.GetFileNameWithoutExtension(file)))) {
-                notFound = [.. notFound, Path.GetFileNameWithoutExtension(file)];
-              }
-            }
-          }
-        }
-        notFound = notFound.Where((v) => !pair.Value.Contains(v)).ToArray();
-        string[] toAdd = [];
-        List<string> existingPatches = Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success).ToList();
-        List<string> copy = [.. existingPatches];
-        foreach (string unfound in notFound) {
-          string patch = GetFirstValidPatchName(unfound, [ .. existingPatches, ..pair.Value.Select((v) => {
-            string patch = GetFirstValidPatchName(v, copy);
-            copy.Add(patch);
-            return patch;
-          })]);
-          existingPatches.Add(patch);
-          EntryPoint.queue.CreateEmpty(patch);
-          toAdd = [.. toAdd, patch];
-        }
-        FileAssociation association = new()
+        FileAssociation assoc = new()
         {
           AssociatedMod = name,
-          Files = [..pair.Value.Select((v) => {
-            string p = GetFirstValidPatchName(v, existingPatches);
-            existingPatches.Add(p);
-            EntryPoint.queue.CreateSymbolicLink(v, p);
-            return p;
-          }).ToArray(), ..toAdd]
+          Files = [..pair.Value.SelectMany((v, index) => {
+            string[] set = GetFirstValidPatchSet(v, index, existingPatches);
+            existingPatches.AddRange(set);
+            for (int i = 0; i < v.Length; i++) {
+              EntryPoint.queue.CreateSymbolicLink(v[i], set[i]);
+            }
+            return set;
+          })],
+          PatchNumber = 0
         };
-        fileRecords[pair.Key] = [association];
+        fileRecords[pair.Key] = [assoc];
       }
     }
     modState[name] = state with { Enabled = true };
@@ -464,68 +448,68 @@ partial class ModManager {
     ModJson state = modState[name];
     if (!state.Enabled) return;
     ArsenalMod mod = mods.First((m) => m.Guid == name);
-    string[] filenames;
-    if (mod.Manifest.HasValue)
-    {
-      filenames = ProcessChoicesIntoFilenames(mod);
+    string[][] filenames;
+    if (mod.Manifest.HasValue) {
+      filenames = ProcessChoicesIntoPatchSets(mod);
     }
     else {
-      filenames = mod.Files!;
+      filenames = ProcessFilenamesIntoPatchSets([..mod.Files!]);
     }
-    Dictionary<string, HashSet<string>> outputPaths = [];
-    Dictionary<string, string> basenames = [];
-    foreach (string filename in filenames) {
-      string fileName = new FileInfo(filename).Name;
-      string withoutExt = fileName.Contains('.') ? fileName[..fileName.IndexOf('.')] : fileName;   
-      basenames[filename] = withoutExt;
+    Dictionary<string[], string> basenames = [];
+    foreach (string[] set in filenames) {
+      string fset = set.First();
+      string fname = new FileInfo(fset).Name;
+      string withoutExt = fname.Contains('.') ? fname[..fname.IndexOf('.')] : fname;
+      basenames[set] = withoutExt;
     }
     Dictionary<string, FileAssociation[]> toDowngrade = [];
-    foreach (string filename in filenames) {
-      string basename = basenames[filename];
+    Dictionary<string, HashSet<string>> deleting = [];
+    foreach (string[] set in filenames) {
+      string basename = basenames[set];
       FileAssociation[] associations = fileRecords.TryGetValue(basename, out FileAssociation[]? value) ? value : [];
       FileAssociation? ourAssociation = null;
       foreach (FileAssociation assoc in associations) {
         if (assoc.AssociatedMod == name) {
           ourAssociation = assoc;
+          break;
         }
       }
       if (ourAssociation.HasValue) {
         FileAssociation[] downgrading = associations.Where((v) => v.PatchNumber > ourAssociation.Value.PatchNumber).ToArray();
-        //fileRecords[basename] = associations.Where((v) => v.PatchNumber != ourAssociation.Value.PatchNumber).ToArray();
         toDowngrade[basename] = downgrading;
         foreach (string file in ourAssociation.Value.Files) {
-          if (outputPaths.TryGetValue(basename, out HashSet<string>? v)) {
-            outputPaths[basename].Add(file);
+          if (deleting.TryGetValue(basename, out HashSet<string>? v)) {
+            v.Add(file);
           }
           else {
-            outputPaths[basename] = [file];
+            deleting[basename] = [file];
           }
         }
       }
     }
-    foreach (KeyValuePair<string, string> basename in basenames) {
-      foreach (string file in outputPaths[basename.Value]) {
+    foreach (KeyValuePair<string[], string> basename in basenames) {
+      foreach (string file in deleting[basename.Value]) {
         if (File.Exists(file))
           EntryPoint.queue.Delete(file);
       }
     }
     EntryPoint.queue.WaitForEmpty();
-    foreach (KeyValuePair<string, FileAssociation[]> pair in toDowngrade) {
-      if (pair.Value.Length == 0 && fileRecords[pair.Key].Length == 1)  {
-        fileRecords.Remove(pair.Key);
+    foreach (KeyValuePair<string, FileAssociation[]> downgrading in toDowngrade) {
+      if (downgrading.Value.Length == 0 && fileRecords[downgrading.Key].Length == 1)  {
+        fileRecords.Remove(downgrading.Key);
         continue;
       };
-      if (pair.Value.Length == 0 && fileRecords[pair.Key].Length == 0) {
-        fileRecords.Remove(pair.Key);
+      if (downgrading.Value.Length == 0 && fileRecords[downgrading.Key].Length == 0) {
+        fileRecords.Remove(downgrading.Key);
         continue;
       };
-      if (pair.Value.Length == 0)
+      if (downgrading.Value.Length == 0)
       {
-        fileRecords[pair.Key] = fileRecords[pair.Key].Where((v) => v.AssociatedMod != mod.Guid).ToArray();
+        fileRecords[downgrading.Key] = fileRecords[downgrading.Key].Where((v) => v.AssociatedMod != mod.Guid).ToArray();
         continue;
       }
-      int lowestPatchNumberPair = pair.Value.OrderBy((v) => v.PatchNumber).First().PatchNumber;
-      FileAssociation[] withoutDowngraded = fileRecords[pair.Key].Where((v) => v.PatchNumber < lowestPatchNumberPair).ToArray();
+      int lowestPatchNumberPair = downgrading.Value.OrderBy((v) => v.PatchNumber).First().PatchNumber;
+      FileAssociation[] withoutDowngraded = fileRecords[downgrading.Key].Where((v) => v.PatchNumber < lowestPatchNumberPair).ToArray();
       int highestPatchNumber = -1;
       if (withoutDowngraded.Length > 0) {
         foreach (FileAssociation notDowngraded in withoutDowngraded.OrderBy((v) => v.PatchNumber)) {
@@ -536,22 +520,36 @@ partial class ModManager {
       }
       FileAssociation[] downgraded = [];
       List<string> existingPatches = Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success).ToList();
-      foreach (FileAssociation association in pair.Value.OrderBy((v) => v.PatchNumber)) {
+      foreach (FileAssociation association in downgrading.Value.OrderBy((v) => v.PatchNumber)) {
         FileAssociation baseMod = association with { PatchNumber = highestPatchNumber + 1 };
         string[] newFiles = [];
-        foreach (string file in association.Files) {
-          string p = GetFirstValidPatchName(file, existingPatches);
-          existingPatches.Add(p);
-          if (File.Exists(file))
-            EntryPoint.queue.Move(file, p);
-          newFiles = [.. newFiles, p];
+        foreach (string file in association.Files)
+        {
+          EntryPoint.queue.Delete(file);
+          existingPatches.Remove(file);
         }
+        ArsenalMod m = mods.First((v) => v.Guid == association.AssociatedMod);
+        string[][] sets;
+        if (m.Manifest.HasValue) {
+          sets = ProcessChoicesIntoPatchSets(m);
+        }
+        else {
+          sets = ProcessFilenamesIntoPatchSets([.. m.Files!]);
+        }
+        newFiles = [..sets.SelectMany((v, index) => {
+          string[] set = GetFirstValidPatchSet(v, index, existingPatches);
+          existingPatches.AddRange(set);
+          for (int i = 0; i < v.Length; i++) {
+            EntryPoint.queue.CreateSymbolicLink(v[i], set[i]);
+          }
+          return set;
+        })];
         baseMod.Files = newFiles;
         downgraded = [.. downgraded, baseMod];
-        highestPatchNumber += 1;
+        highestPatchNumber++;
       }
       FileAssociation[] combined = [.. withoutDowngraded, .. downgraded];
-      fileRecords[pair.Key] = combined.Where((v) => v.AssociatedMod != mod.Guid).ToArray();
+      fileRecords[downgrading.Key] = combined.Where((v) => v.AssociatedMod != mod.Guid).ToArray();
     }
     modState[name] = state with { Enabled = false };
     EntryPoint.queue.WaitForEmpty();
@@ -759,7 +757,14 @@ partial class ModManager {
   }
 
   [GeneratedRegex(@"(?<=patch_)\d+")]
-  private static partial Regex MyRegex();
+  private static partial Regex IsPatch();
   [GeneratedRegex(@"\.patch_(\d+)$")]
   private static partial Regex IsPatchFile();
+  [GeneratedRegex(@"\.patch_(\d+)\.gpu_resources$")]
+  private static partial Regex IsGPUResources();
+  [GeneratedRegex(@"\.patch_(\d+)\.stream$")]
+  private static partial Regex IsStream();
+
+  [GeneratedRegex(@"^(?<base>[^\.]+)\.patch_(?<index>\d+)(?:\.(?<ext>stream|gpu_resources))?$")]
+  private static partial Regex GrabPatchInfo();
 }
