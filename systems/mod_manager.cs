@@ -506,7 +506,103 @@ partial class ModManager {
       }
     }
     modState[name] = state with { Enabled = true };
-    EntryPoint.queue.WaitForEmpty();
+    SaveData();
+  }
+
+  public void CheckForPatchGaps() {
+    foreach (KeyValuePair<string, FileAssociation[]> patches in fileRecords) {
+      HashSet<int> foundPatches = [];
+      foreach (FileAssociation patch in patches.Value) {
+        HashSet<int> subNumbers = [];
+        foreach (string file in patch.Files) {
+          Match match = FileNumRegex.Match(file);
+          if (match.Success) {
+            if (int.TryParse(match.Value, out int num)) {
+              subNumbers.Add(num);
+            }
+          }
+        }
+        foundPatches = [.. foundPatches, .. subNumbers];
+      }
+      Dictionary<(int patch, FileAssociation associated), string[]> markedForMove = [];
+      bool foundGap = false;
+      int lastPatch = -1;
+      foreach (int patchNum in foundPatches.OrderBy((v) => v)) {
+        int diff = Math.Abs(patchNum - lastPatch);
+        if (diff > 1) {
+          foundGap = true;
+          break;
+        }
+        lastPatch = patchNum;
+      }
+      if (foundGap) {
+        foreach (FileAssociation assoc in patches.Value) {
+          foreach (string file in assoc.Files) {
+            Match match = FileNumRegex.Match(file);
+            if (match.Success) {
+              if (int.TryParse(match.Value, out int num)) {
+                if (num > lastPatch) {
+                  if (markedForMove.TryGetValue((num, assoc), out string[] files)) {
+                    markedForMove[(num, assoc)] = [.. files, file];
+                  }
+                  else {
+                    markedForMove[(num, assoc)] = [file];
+                  }
+                }
+              }
+            }
+          }
+        }
+        Dictionary<string, FileAssociation> newAssociations = [];
+        List<string> existing = Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success).ToList();
+        foreach (KeyValuePair<(int patch, FileAssociation associated), string[]> kvp in markedForMove) {
+          if (newAssociations.TryGetValue(kvp.Key.associated.AssociatedMod, out FileAssociation assoc)) {
+            string[][] sets = ProcessFilenamesIntoPatchSets([..kvp.Value]);
+            string[] newF = [];
+            foreach (string[] set in sets) {
+              string[] newFiles = GetFirstValidPatchSet(set, 0, existing);
+              for (int i = 0; i < set.Length; i++) {
+                Console.WriteLine($"Queuing move for {set[i]} to {newFiles[i]}");
+                EntryPoint.queue.Move(set[i], newFiles[i]);
+                existing.Add(newFiles[i]);
+                existing.Remove(set[i]);
+              }
+              EntryPoint.queue.WaitForEmpty();
+              newF = [.. newF, .. newFiles];
+            }
+            newAssociations[kvp.Key.associated.AssociatedMod] = assoc with { Files = [.. assoc.Files, ..newF] };
+          }
+          else {
+            string[][] sets = ProcessFilenamesIntoPatchSets([..kvp.Value]);
+            string[] newF = [];
+            foreach (string[] set in sets) {
+              string[] newFiles = GetFirstValidPatchSet(set, 0, existing);
+              for (int i = 0; i < set.Length; i++) {
+                Console.WriteLine($"Queuing move for {set[i]} to {newFiles[i]}");
+                EntryPoint.queue.Move(set[i], newFiles[i]);
+                existing.Add(newFiles[i]);
+                existing.Remove(set[i]);
+              }
+              EntryPoint.queue.WaitForEmpty();
+              newF = [.. newF, .. newFiles];
+            }
+            newAssociations[kvp.Key.associated.AssociatedMod] = new FileAssociation()
+            {
+              AssociatedMod = kvp.Key.associated.AssociatedMod,
+              PatchNumber = kvp.Key.associated.PatchNumber,
+              Files = newF
+            };
+          }
+        }
+        foreach (KeyValuePair<string, FileAssociation> kvp in newAssociations) {
+          FileAssociation[] ex = fileRecords[patches.Key];
+          ex = ex.Where((v) => v.AssociatedMod != kvp.Key).ToArray();
+          ex = [.. ex, kvp.Value];
+          fileRecords[patches.Key] = ex;
+        }
+        EntryPoint.queue.WaitForEmpty();
+      }
+    }
     SaveData();
   }
 
@@ -569,58 +665,7 @@ partial class ModManager {
         fileRecords.Remove(downgrading.Key);
         continue;
       };
-      if (downgrading.Value.Length == 0)
-      {
-        fileRecords[downgrading.Key] = fileRecords[downgrading.Key].Where((v) => v.AssociatedMod != mod.Guid).ToArray();
-        continue;
-      }
-      int lowestPatchNumberPair = downgrading.Value.OrderBy((v) => v.PatchNumber).First().PatchNumber;
-      FileAssociation[] withoutDowngraded = fileRecords[downgrading.Key].Where((v) => v.PatchNumber < lowestPatchNumberPair).ToArray();
-      int highestPatchNumber = -1;
-      if (withoutDowngraded.Length > 0) {
-        foreach (FileAssociation notDowngraded in withoutDowngraded.OrderBy((v) => v.PatchNumber)) {
-          if (Math.Abs(notDowngraded.PatchNumber - highestPatchNumber) == 1) {
-            highestPatchNumber = notDowngraded.PatchNumber;
-          }
-        }
-      }
-      FileAssociation[] downgraded = [];
-      List<string> existingPatches = Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success).ToList();
-      FileAssociation[] assoc = [];
-      foreach (FileAssociation association in downgrading.Value.OrderBy((v) => v.PatchNumber)) {
-        FileAssociation baseMod = association with { PatchNumber = highestPatchNumber + 1 };
-        assoc = [.. assoc, baseMod];
-        downgraded = [.. downgraded, baseMod];
-        highestPatchNumber++;
-      }
-      for (int i = 0; i < assoc.Length; i++)
-      {
-        string[] newFiles = [];
-        foreach (string file in assoc[i].Files)
-        {
-          EntryPoint.queue.Delete(file);
-          existingPatches.Remove(file);
-        }
-        ArsenalMod m = mods.First((v) => v.Guid == assoc[i].AssociatedMod);
-        string[][] sets;
-        if (m.Manifest.HasValue) {
-          sets = ProcessChoicesIntoPatchSets(m);
-        }
-        else {
-          sets = ProcessFilenamesIntoPatchSets([.. m.Files!]);
-        }
-        newFiles = [..sets.SelectMany((v, index) => {
-          string[] set = GetFirstValidPatchSet(v, index, existingPatches);
-          existingPatches.AddRange(set);
-          for (int i = 0; i < v.Length; i++) {
-            EntryPoint.queue.CreateSymbolicLink(v[i], set[i]);
-          }
-          return set;
-        })];
-        assoc[i].Files = newFiles;
-      }
-      FileAssociation[] combined = [.. withoutDowngraded, .. downgraded];
-      fileRecords[downgrading.Key] = combined.Where((v) => v.AssociatedMod != mod.Guid).ToArray();
+      fileRecords[downgrading.Key] = fileRecords[downgrading.Key].Where((v) => v.AssociatedMod != mod.Guid).ToArray();
     }
     modState[name] = state with { Enabled = false };
     EntryPoint.queue.WaitForEmpty();

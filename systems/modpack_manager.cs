@@ -66,6 +66,7 @@ class ModpackManager {
         manager.DisableMod(mod.Key);
       }
     }
+    EntryPoint.queue.WaitForEmpty();
     foreach (ModpackMod mod in pack.mods) {
       manager.EnableMod(mod.guid);
       if (mod.options != null)
@@ -73,5 +74,7 @@ class ModpackManager {
           manager.EnableChoice(mod.guid, option);
         }
     }
+    EntryPoint.queue.WaitForEmpty();
+    manager.CheckForPatchGaps();
   }
 }

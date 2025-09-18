@@ -11,6 +11,7 @@ using System.IO.Pipes;
 using System.Text;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using Newtonsoft.Json;
 
 namespace yahd2mm;
 
@@ -327,6 +328,7 @@ partial class EntryPoint
       {
         manager.modManager.EnableMod(mod.Guid);
       }
+      manager.modManager.CheckForPatchGaps();
     }
     ImGui.SameLine();
     if (ImGui.Button("Disable all mods"))
@@ -337,6 +339,7 @@ partial class EntryPoint
       {
         manager.modManager.DisableMod(mod.Guid);
       }
+      manager.modManager.CheckForPatchGaps();
     }
     ImGui.SameLine();
     if (ImGui.Button("Re-deploy"))
@@ -356,6 +359,8 @@ partial class EntryPoint
       foreach (ArsenalMod mod in enabled) {
         manager.modManager.EnableMod(mod.Guid);
       }
+      queue.WaitForEmpty();
+      manager.modManager.CheckForPatchGaps();
     }
     ImGui.SameLine();
     if (ImGui.Button("Purge mod files")) {
@@ -640,9 +645,12 @@ partial class EntryPoint
       if (ImGui.Checkbox("Enable", ref enabled)) {
         if (enabled) {
           manager.modManager.EnableMod(mod.Guid);
+          queue.WaitForEmpty();
         }
         else {
           manager.modManager.DisableMod(mod.Guid);
+          queue.WaitForEmpty();
+          manager.modManager.CheckForPatchGaps();
         }
       }
       if (ImGui.Button("Rename")) {
