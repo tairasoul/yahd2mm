@@ -3,7 +3,9 @@ using System.Threading.Channels;
 
 namespace yahd2mm;
 
-partial class WindowsFilesystemQueue : IFilesystemOperations {
+// every function here might as well be synchronous because windows is a fucking wack ass operating system and it keeps breaking
+// because some other program (only god knows how or why) is using one of the mod files
+class WindowsFilesystemQueue : IFilesystemOperations {
   private readonly Channel<FilesystemOperation> operations = Channel.CreateUnbounded<FilesystemOperation>();
   private readonly Lock _lock = new();
   private readonly List<Task> _inProgressTasks = [];

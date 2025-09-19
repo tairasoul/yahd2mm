@@ -11,7 +11,6 @@ using System.IO.Pipes;
 using System.Text;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
-using Newtonsoft.Json;
 
 namespace yahd2mm;
 
@@ -180,7 +179,7 @@ partial class EntryPoint
     /*if (!NeedsHD2DataPath && !NeedsHD2DataPath && !IsAdministrator()) {
       ImGui.OpenPopup("Admin Permissions");
     }*/
-    PromptForAdmin();
+    //PromptForAdmin();
     ImGui.End();
     ImGui.PopStyleVar(1);
   }

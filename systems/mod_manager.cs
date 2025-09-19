@@ -11,7 +11,6 @@ struct ModJson {
 }
 
 struct FileAssociation {
-  public int PatchNumber;
   public string AssociatedMod;
   public string[] Files;
 }
@@ -485,7 +484,7 @@ partial class ModManager {
             return set;
           })]
         };
-        existing = [.. existing, assoc with { PatchNumber = existing.Length }];
+        existing = [.. existing, assoc];
         fileRecords[pair.Key] = existing;
       }
       else {
@@ -499,8 +498,7 @@ partial class ModManager {
               EntryPoint.queue.CreateSymbolicLink(v[i], set[i]);
             }
             return set;
-          })],
-          PatchNumber = 0
+          })]
         };
         fileRecords[pair.Key] = [assoc];
       }
@@ -562,7 +560,6 @@ partial class ModManager {
             foreach (string[] set in sets) {
               string[] newFiles = GetFirstValidPatchSet(set, 0, existing);
               for (int i = 0; i < set.Length; i++) {
-                Console.WriteLine($"Queuing move for {set[i]} to {newFiles[i]}");
                 EntryPoint.queue.Move(set[i], newFiles[i]);
                 existing.Add(newFiles[i]);
                 existing.Remove(set[i]);
@@ -578,7 +575,6 @@ partial class ModManager {
             foreach (string[] set in sets) {
               string[] newFiles = GetFirstValidPatchSet(set, 0, existing);
               for (int i = 0; i < set.Length; i++) {
-                Console.WriteLine($"Queuing move for {set[i]} to {newFiles[i]}");
                 EntryPoint.queue.Move(set[i], newFiles[i]);
                 existing.Add(newFiles[i]);
                 existing.Remove(set[i]);
@@ -589,7 +585,6 @@ partial class ModManager {
             newAssociations[kvp.Key.associated.AssociatedMod] = new FileAssociation()
             {
               AssociatedMod = kvp.Key.associated.AssociatedMod,
-              PatchNumber = kvp.Key.associated.PatchNumber,
               Files = newF
             };
           }
@@ -624,11 +619,12 @@ partial class ModManager {
       string withoutExt = fname.Contains('.') ? fname[..fname.IndexOf('.')] : fname;
       basenames[set] = withoutExt;
     }
-    Dictionary<string, FileAssociation[]> toDowngrade = [];
+    HashSet<string> check = [];
     Dictionary<string, HashSet<string>> deleting = [];
     foreach (string[] set in filenames) {
       string basename = basenames[set];
-      FileAssociation[] associations = fileRecords.TryGetValue(basename, out FileAssociation[]? value) ? value : [];
+      bool valueGotten = fileRecords.TryGetValue(basename, out FileAssociation[]? value);
+      FileAssociation[] associations = valueGotten ? value! : [];
       FileAssociation? ourAssociation = null;
       foreach (FileAssociation assoc in associations) {
         if (assoc.AssociatedMod == name) {
@@ -637,8 +633,9 @@ partial class ModManager {
         }
       }
       if (ourAssociation.HasValue) {
-        FileAssociation[] downgrading = associations.Where((v) => v.PatchNumber > ourAssociation.Value.PatchNumber).ToArray();
-        toDowngrade[basename] = downgrading;
+        if (valueGotten) {
+          check.Add(basename);
+        }
         foreach (string file in ourAssociation.Value.Files) {
           if (deleting.TryGetValue(basename, out HashSet<string>? v)) {
             v.Add(file);
@@ -656,7 +653,15 @@ partial class ModManager {
       }
     }
     EntryPoint.queue.WaitForEmpty();
-    foreach (KeyValuePair<string, FileAssociation[]> downgrading in toDowngrade) {
+    foreach (string b in check) {
+      FileAssociation[] assoc = fileRecords[b];
+      assoc = assoc.Where((v) => v.AssociatedMod != mod.Guid).ToArray();
+      if (assoc.Length > 0)
+        fileRecords[b] = assoc;
+      else
+        fileRecords.Remove(b);
+    }
+    /*foreach (KeyValuePair<string, FileAssociation[]> downgrading in toDowngrade) {
       if (downgrading.Value.Length == 0 && fileRecords[downgrading.Key].Length == 1)  {
         fileRecords.Remove(downgrading.Key);
         continue;
@@ -666,9 +671,8 @@ partial class ModManager {
         continue;
       };
       fileRecords[downgrading.Key] = fileRecords[downgrading.Key].Where((v) => v.AssociatedMod != mod.Guid).ToArray();
-    }
+    }*/
     modState[name] = state with { Enabled = false };
-    EntryPoint.queue.WaitForEmpty();
     SaveData();
   }
 
