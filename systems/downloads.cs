@@ -42,10 +42,10 @@ class DownloadManager {
     client = new();
   }
 
-  private ProcessedLink processLink(string url) {
+  private static ProcessedLink ProcessLink(string url) {
     string firstReplaced = url.Replace("nxm://helldivers2/mods/", "");
     string[] split1 = firstReplaced.Split('?');
-    string[] baseurl = split1[0].Split("/").Where((v) => v != "files").ToArray();
+    string[] baseurl = [.. split1[0].Split("/").Where((v) => v != "files")];
     string[] options = split1[1].Split("&");
     string modId = baseurl[0];
     string fileId = baseurl[1];
@@ -100,11 +100,11 @@ class DownloadManager {
     }
 
   private async Task<DownloadLinkAPIResponse> GetDownloadLink(string url) {
-    ProcessedLink link = processLink(url);
+    ProcessedLink link = ProcessLink(url);
     string constructed = $"https://api.nexusmods.com/v1/games/helldivers2/mods/{link.modId}/files/{link.fileId}/download_link.json?key={link.key}&expires={link.expires}";
     HttpRequestMessage request = new(HttpMethod.Get, constructed);
     request.Headers.Add("apikey", EntryPoint.APIKey);
-    request.Headers.Add("User-Agent", "yahd2mm/0.3.4 .NET/9.0");
+    request.Headers.Add("User-Agent", "yahd2mm/0.3.5 .NET/9.0");
     HttpResponseMessage message = client.Send(request);
     string raw = await message.Content.ReadAsStringAsync();
     DownloadLinkAPIResponse[] response = JsonConvert.DeserializeObject<DownloadLinkAPIResponse[]>(raw)!;
@@ -112,11 +112,11 @@ class DownloadManager {
   }
 
   private async Task<ModInfoAPIResponse> GetModInfo(string url) {
-    ProcessedLink link = processLink(url);
+    ProcessedLink link = ProcessLink(url);
     string id = link.modId;
     string api_url = $"https://api.nexusmods.com/v1/games/helldivers2/mods/{id}.json";
     HttpRequestMessage request = new(HttpMethod.Get, api_url);
-    request.Headers.Add("User-Agent", "yahd2mm/0.3.4 .NET/9.0");
+    request.Headers.Add("User-Agent", "yahd2mm/0.3.5 .NET/9.0");
     request.Headers.Add("apikey", EntryPoint.APIKey);
     HttpResponseMessage message = client.Send(request);
     string raw = await message.Content.ReadAsStringAsync();
