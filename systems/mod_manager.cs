@@ -5,20 +5,23 @@ using Semver;
 
 namespace yahd2mm;
 
-struct ModJson {
+struct ModJson
+{
   public bool Enabled;
   public string Version;
 }
 
-struct FileAssociation {
+struct FileAssociation
+{
   public string AssociatedMod;
   public string[] Files;
 }
 
-class ManifestChoices {
-  public string Name;
-  public string Description;
-  public string IconPath;
+class ManifestChoices
+{
+  public string? Name;
+  public string? Description;
+  public string? IconPath;
   public bool IsString;
   public bool Chosen;
   public ManifestChoices[]? SubChoices;
@@ -26,24 +29,25 @@ class ManifestChoices {
 
 class AliasDictionary(ModManager manager)
 {
-  private ModManager manager = manager;
-  public string this[string inp] {
-    get {
-      if (manager.aliases.TryGetValue(inp, out string? value)) {
-        return value;
-      }
-      return manager.mods.First((v) => v.Guid == inp).Name;
+  private readonly ModManager manager = manager;
+  public string this[string inp]
+  {
+    get
+    {
+      return manager.aliases.TryGetValue(inp, out string? value) ? value : manager.mods.First((v) => v.Guid == inp).Name;
     }
-    set {
+    set
+    {
       manager.aliases[inp] = value;
       manager.SaveData();
     }
   }
 }
 
-partial class ModManager {
+partial class ModManager
+{
   internal List<ArsenalMod> mods = [];
-  internal EventHandler<ArsenalMod> modAdded = (_, __) => { };
+  internal EventHandler<ArsenalMod> modAdded = static (_, __) => { };
   internal static readonly string ModHolder = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "mods");
   static readonly string Record = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "record.json");
   static readonly string State = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "state.json");
@@ -60,16 +64,20 @@ partial class ModManager {
   internal AliasDictionary modAliases;
   internal Dictionary<string, ManifestChoices[]> processedChoices = [];
 
-  public ModManager() {
+  public ModManager()
+  {
     ProcessMods();
     modAliases = new(this);
+    priorities = [.. priorities.Where((v) => mods.Any((b) => b.Guid == v))];
   }
 
-  public void SaveData() {
+  public void SaveData()
+  {
     File.WriteAllText(State, JsonConvert.SerializeObject(modState));
     File.WriteAllText(Record, JsonConvert.SerializeObject(fileRecords));
     Dictionary<string, string[]> proc = [];
-    foreach (KeyValuePair<string, ManifestChoices[]> paths in processedChoices) {
+    foreach (KeyValuePair<string, ManifestChoices[]> paths in processedChoices)
+    {
       proc[paths.Key] = ChoicesToPaths(paths.Value);
     }
     File.WriteAllText(Choices, JsonConvert.SerializeObject(proc));
@@ -78,184 +86,299 @@ partial class ModManager {
     File.WriteAllText(PriorityList, JsonConvert.SerializeObject(priorities));
   }
 
-  internal static string[] ChoicesToPaths(ManifestChoices[] choices, string currentPath = "") {
+  internal static string[] ChoicesToPaths(ManifestChoices[] choices, string currentPath = "")
+  {
     List<string> result = [];
-    foreach (ManifestChoices choice in choices) {
-      if (choice.Chosen) {
+    foreach (ManifestChoices choice in choices)
+    {
+      if (choice.Chosen)
+      {
         result.Add(currentPath + choice.Name);
       }
-      if (choice.SubChoices != null) {
+      if (choice.SubChoices != null)
+      {
         result.AddRange(ChoicesToPaths(choice.SubChoices, currentPath + choice.Name + "/"));
       }
     }
     return [.. result];
   }
 
-  internal void ApplyPriorities() {
-    string[] modList = mods.Where((v) => modState[v.Guid].Enabled).OrderBy((v) => Array.FindIndex(priorities, b => b == v.Guid)).Select((v) => v.Guid).ToArray();
+  internal void ApplyPriorities()
+  {
+    string[] modList = [.. mods.Where((v) => modState[v.Guid].Enabled).OrderBy((v) => Array.FindIndex(priorities, b => b == v.Guid)).Select((v) => v.Guid)];
     foreach (string mod in modList.Reverse())
+    {
       DisableMod(mod);
+    }
+
     foreach (string mod in modList)
+    {
       EnableMod(mod);
+    }
   }
 
-  public void ActivateAllOptions(string mod) {
-    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices)) return;
+  public void ActivateAllOptions(string mod)
+  {
+    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices))
+    {
+      return;
+    }
+
     bool reactivate = modState[mod].Enabled;
-    if (reactivate) DisableMod(mod);
-    foreach (ManifestChoices choice in choices) {
+    if (reactivate)
+    {
+      DisableMod(mod);
+    }
+
+    foreach (ManifestChoices choice in choices)
+    {
       choice.Chosen = true;
-      foreach (ManifestChoices c in choice.SubChoices ?? []) {
+      foreach (ManifestChoices c in choice.SubChoices ?? [])
+      {
         c.Chosen = true;
       }
     }
-    if (reactivate) EnableMod(mod);
+    if (reactivate)
+    {
+      EnableMod(mod);
+    }
+
     SaveData();
   }
 
-  public void DisableAllOptions(string mod) {
-    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices)) return;
+  public void DisableAllOptions(string mod)
+  {
+    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices))
+    {
+      return;
+    }
+
     bool reactivate = modState[mod].Enabled;
-    if (reactivate) DisableMod(mod);
-    foreach (ManifestChoices choice in choices) {
+    if (reactivate)
+    {
+      DisableMod(mod);
+    }
+
+    foreach (ManifestChoices choice in choices)
+    {
       choice.Chosen = false;
-      foreach (ManifestChoices c in choice.SubChoices ?? []) {
+      foreach (ManifestChoices c in choice.SubChoices ?? [])
+      {
         c.Chosen = false;
       }
     }
-    if (reactivate) EnableMod(mod);
+    if (reactivate)
+    {
+      EnableMod(mod);
+    }
+
     SaveData();
   }
 
-  public void EnableAllSubOptions(string mod) {
-    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices)) return;
+  public void EnableAllSubOptions(string mod)
+  {
+    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices))
+    {
+      return;
+    }
+
     bool reactivate = modState[mod].Enabled;
-    if (reactivate) DisableMod(mod);
-    foreach (ManifestChoices choice in choices) {
-      foreach (ManifestChoices c in choice.SubChoices ?? []) {
+    if (reactivate)
+    {
+      DisableMod(mod);
+    }
+
+    foreach (ManifestChoices choice in choices)
+    {
+      foreach (ManifestChoices c in choice.SubChoices ?? [])
+      {
         c.Chosen = true;
       }
     }
-    if (reactivate) EnableMod(mod);
+    if (reactivate)
+    {
+      EnableMod(mod);
+    }
+
     SaveData();
   }
 
-  public void DisableAllSubOptions(string mod) {
-    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices)) return;
+  public void DisableAllSubOptions(string mod)
+  {
+    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices))
+    {
+      return;
+    }
+
     bool reactivate = modState[mod].Enabled;
-    if (reactivate) DisableMod(mod);
-    foreach (ManifestChoices choice in choices) {
-      foreach (ManifestChoices c in choice.SubChoices ?? []) {
+    if (reactivate)
+    {
+      DisableMod(mod);
+    }
+
+    foreach (ManifestChoices choice in choices)
+    {
+      foreach (ManifestChoices c in choice.SubChoices ?? [])
+      {
         c.Chosen = false;
       }
     }
-    if (reactivate) EnableMod(mod);
+    if (reactivate)
+    {
+      EnableMod(mod);
+    }
+
     SaveData();
   }
 
-  public void EnableChoice(string mod, string path) {
+  public void EnableChoice(string mod, string path)
+  {
     bool reactivate = modState[mod].Enabled;
-    if (reactivate) DisableMod(mod);
+    if (reactivate)
+    {
+      DisableMod(mod);
+    }
+
     ManifestChoices[] choices = processedChoices[mod];
-    foreach (ManifestChoices choice in choices) {
-      if (choice.Name == path) {
+    foreach (ManifestChoices choice in choices)
+    {
+      if (choice.Name == path)
+      {
         choice.Chosen = true;
       }
-      else if (choice.SubChoices != null) {
+      else if (choice.SubChoices != null)
+      {
         string currentPath = choice.Name;
-        foreach (ManifestChoices c in choice.SubChoices) {
+        foreach (ManifestChoices c in choice.SubChoices)
+        {
           EnableChoice(c, path, currentPath);
         }
       }
     }
-    if (reactivate) EnableMod(mod);
+    if (reactivate)
+    {
+      EnableMod(mod);
+    }
+
     SaveData();
   }
 
-  private static void EnableChoice(ManifestChoices choice, string path, string currentPath) {
-    if (currentPath + "/" + choice.Name == path) {
+  private static void EnableChoice(ManifestChoices choice, string path, string currentPath)
+  {
+    if (currentPath + "/" + choice.Name == path)
+    {
       choice.Chosen = true;
     }
-    else if (choice.SubChoices != null) {
+    else if (choice.SubChoices != null)
+    {
       string newPath = currentPath + "/" + choice.Name;
-      foreach (ManifestChoices c in choice.SubChoices) {
+      foreach (ManifestChoices c in choice.SubChoices)
+      {
         EnableChoice(c, path, newPath);
       }
     }
   }
 
-  public void DisableChoice(string mod, string path) {
+  public void DisableChoice(string mod, string path)
+  {
     bool reactivate = modState[mod].Enabled;
-    if (reactivate) DisableMod(mod);
+    if (reactivate)
+    {
+      DisableMod(mod);
+    }
+
     ManifestChoices[] choices = processedChoices[mod];
-    foreach (ManifestChoices choice in choices) {
-      if (choice.Name == path) {
+    foreach (ManifestChoices choice in choices)
+    {
+      if (choice.Name == path)
+      {
         choice.Chosen = false;
       }
-      else if (choice.SubChoices != null) {
+      else if (choice.SubChoices != null)
+      {
         string currentPath = choice.Name;
-        foreach (ManifestChoices c in choice.SubChoices) {
+        foreach (ManifestChoices c in choice.SubChoices)
+        {
           DisableChoice(c, path, currentPath);
         }
       }
     }
-    if (reactivate) EnableMod(mod);
+    if (reactivate)
+    {
+      EnableMod(mod);
+    }
+
     SaveData();
   }
 
-  private static void DisableChoice(ManifestChoices choice, string path, string currentPath) {
-    if (currentPath + "/" + choice.Name == path) {
+  private static void DisableChoice(ManifestChoices choice, string path, string currentPath)
+  {
+    if (currentPath + "/" + choice.Name == path)
+    {
       choice.Chosen = false;
     }
-    else if (choice.SubChoices != null) {
+    else if (choice.SubChoices != null)
+    {
       string newPath = currentPath + "/" + choice.Name;
-      foreach (ManifestChoices c in choice.SubChoices) {
+      foreach (ManifestChoices c in choice.SubChoices)
+      {
         EnableChoice(c, path, newPath);
       }
     }
   }
 
-  private static string[][] ProcessFilenamesIntoPatchSets(List<string> filenames) {
+  private static string[][] ProcessFilenamesIntoPatchSets(List<string> filenames)
+  {
     Dictionary<string, (string patch, string gpu, string stream)> patchSets = [];
-    foreach (string file in filenames) {
+    foreach (string file in filenames)
+    {
       string name = Path.GetFileName(file);
       Match m = PatchInfoRegex.Match(name);
-      if (!m.Success) continue;
+      if (!m.Success)
+      {
+        continue;
+      }
+
       string baseN = m.Groups["base"].Value;
       string index = m.Groups["index"].Value;
       string ext = m.Groups["ext"].Value;
       string dir = new FileInfo(file).Directory!.FullName;
       string key = $"{dir}|{baseN}|{index}";
-      if (!patchSets.TryGetValue(key, out (string patch, string gpu, string stream) value)) {
+      if (!patchSets.TryGetValue(key, out (string patch, string gpu, string stream) value))
+      {
         value = (null, null, null);
         patchSets[key] = value;
       }
-      var (patch, gpu, stream) = value;
-      if (string.IsNullOrEmpty(ext)) {
+      (string patch, string gpu, string stream) = value;
+      if (string.IsNullOrEmpty(ext))
+      {
         patch = file;
       }
-      else if (ext == "stream") {
+      else if (ext == "stream")
+      {
         stream = file;
       }
-      else if (ext == "gpu_resources") {
+      else if (ext == "gpu_resources")
+      {
         gpu = file;
       }
       patchSets[key] = (patch, gpu, stream);
     }
 
-    string[][] result = patchSets.OrderBy(p => int.TryParse(p.Key.Split('|')[2], out int idx) ? idx : int.MaxValue).Select(p => {
-      var (patch, gpu, stream) = p.Value;
-      return new List<string>
-      {
-        patch,
-        stream,
-        gpu
-      }.Where(f => !string.IsNullOrEmpty(f)).ToArray();
-    }).ToArray();
+    string[][] result = [.. patchSets.OrderBy(static p => int.TryParse(p.Key.Split('|')[2], out int idx) ? idx : int.MaxValue).Select(static p => {
+        (string patch, string gpu, string stream) = p.Value;
+        return new List<string>
+        {
+          patch,
+          stream,
+          gpu
+        }.Where(static f => !string.IsNullOrEmpty(f)).ToArray();
+      })];
     return result;
   }
 
-  private string[][] ProcessChoicesIntoPatchSets(ArsenalMod mod) {
+  private string[][] ProcessChoicesIntoPatchSets(ArsenalMod mod)
+  {
     string BasePath = Path.Join(ModHolder, mod.FolderName);
     ArsenalManifest manifest = mod.Manifest!.Value;
     List<string> filenames = [];
@@ -273,14 +396,17 @@ partial class ModManager {
         }
         else if (Directory.Exists(path))
         {
-          filenames.AddRange(GetFolderRecursively(path).Where((v) => FileNumRegex.Match(v).Success));
+          filenames.AddRange(GetFolderRecursively(path).Where(static (v) => FileNumRegex.Match(v).Success));
         }
       }
     }
-    else {
+    else
+    {
       string[] files = GetFolderRecursively(BasePath);
-      foreach (string file in files.Where((v) => FileNumRegex.Match(v).Success)) {
-        if (FileNumRegex.Match(file).Success) {
+      foreach (string file in files.Where(static (v) => FileNumRegex.Match(v).Success))
+      {
+        if (FileNumRegex.Match(file).Success)
+        {
           filenames.Add(file);
         }
       }
@@ -288,46 +414,64 @@ partial class ModManager {
     return ProcessFilenamesIntoPatchSets(filenames);
   }
 
-  private static string[] GetFolderRecursively(string path) {
+  private static string[] GetFolderRecursively(string path)
+  {
     List<string> files = [];
-    foreach (string file in Directory.EnumerateFiles(path)) {
+    foreach (string file in Directory.EnumerateFiles(path))
+    {
       files.Add(file);
     }
-    foreach (string directory in Directory.EnumerateDirectories(path)) {
+    foreach (string directory in Directory.EnumerateDirectories(path))
+    {
       files.AddRange(GetFolderRecursively(directory));
     }
     return [.. files];
   }
 
-  private static string[] SubChoicesToIncludes(object[] options) {
+  private static string[] SubChoicesToIncludes(object[] options)
+  {
     List<string> files = [];
-    foreach (object opt in options) {
+    foreach (object opt in options)
+    {
       if (opt is JObject jobj)
       {
         ArsenalOption option = jobj.ToObject<ArsenalOption>();
-        foreach (string include in option.Include!) {
-          if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include)) continue;
+        foreach (string include in option.Include!)
+        {
+          if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include))
+          {
+            continue;
+          }
+
           files.Add(include);
         }
       }
-      else if (opt is string opti) {
-        if (string.IsNullOrEmpty(opti) || string.IsNullOrWhiteSpace(opti)) continue;
+      else if (opt is string opti)
+      {
+        if (string.IsNullOrEmpty(opti) || string.IsNullOrWhiteSpace(opti))
+        {
+          continue;
+        }
+
         files.Add(opti);
       }
     }
-    return files.Where((v) => FileNumRegex.Match(v).Success).ToArray();
+    return [.. files.Where(static (v) => FileNumRegex.Match(v).Success)];
   }
 
-  private static bool IsIncludeRedundant(ArsenalMod mod, string include, List<string> encountered) {
+  private static bool IsIncludeRedundant(ArsenalMod mod, string include, List<string> encountered)
+  {
     string path = Path.Join(ModHolder, mod.FolderName, include);
-    string[] FileAndDirectoryNames = [.. Directory.EnumerateFiles(path).Select((v) => new FileInfo(v).Name), .. Directory.EnumerateDirectories(path).Select((v) => new DirectoryInfo(v).Name)];
+    string[] FileAndDirectoryNames = [.. Directory.EnumerateFiles(path).Select(static (v) => new FileInfo(v).Name), .. Directory.EnumerateDirectories(path).Select(static (v) => new DirectoryInfo(v).Name)];
     return encountered.All(FileAndDirectoryNames.Contains);
   }
 
-  private static string[] ProcessChoices(ArsenalMod mod, string[] chosen, object[] options) {
+  private static string[] ProcessChoices(ArsenalMod mod, string[] chosen, object[] options)
+  {
     List<string> files = [];
     List<string> EncounteredIncludes = [];
-    foreach (object opt in options) {
+    foreach (object opt in options)
+    {
       if (opt is JObject jobj)
       {
         ArsenalOption option = jobj.ToObject<ArsenalOption>();
@@ -335,43 +479,68 @@ partial class ModManager {
         {
           if (option.SubOptions != null)
           {
-            EncounteredIncludes.AddRange(SubChoicesToIncludes(option.SubOptions).Where((v) => !string.IsNullOrEmpty(v) && !string.IsNullOrWhiteSpace(v)));
-            foreach (string include in ProcessSubChoices(chosen, option.Name, option.SubOptions)) {
-              if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include)) continue;
+            EncounteredIncludes.AddRange(SubChoicesToIncludes(option.SubOptions).Where(static (v) => !string.IsNullOrEmpty(v) && !string.IsNullOrWhiteSpace(v)));
+            foreach (string include in ProcessSubChoices(chosen, option.Name, option.SubOptions))
+            {
+              if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include))
+              {
+                continue;
+              }
+
               files.Add(include);
             }
           }
           if (option.Include != null && option.SubOptions != null)
           {
-            foreach (string include in option.Include) {
-              if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include)) continue;
+            foreach (string include in option.Include)
+            {
+              if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include))
+              {
+                continue;
+              }
+
               bool redundant = IsIncludeRedundant(mod, include, EncounteredIncludes);
-              if (!redundant) {
+              if (!redundant)
+              {
                 files.Add(include);
               }
             }
           }
-          else if (option.Include != null) {
-            foreach (string include in option.Include) {
-              if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include)) continue;
+          else if (option.Include != null)
+          {
+            foreach (string include in option.Include)
+            {
+              if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include))
+              {
+                continue;
+              }
+
               files.Add(include);
             }
           }
         }
       }
-      else if (opt is string opti) {
-        if (string.IsNullOrEmpty(opti) || string.IsNullOrWhiteSpace(opti)) continue;
-        if (chosen.Contains(opti)) {
+      else if (opt is string opti)
+      {
+        if (string.IsNullOrEmpty(opti) || string.IsNullOrWhiteSpace(opti))
+        {
+          continue;
+        }
+
+        if (chosen.Contains(opti))
+        {
           files.Add(opti);
         }
       }
     }
-    return [..files];
+    return [.. files];
   }
 
-  private static string[] ProcessSubChoices(string[] chosen, string currentPath, object[] options) {
+  private static string[] ProcessSubChoices(string[] chosen, string currentPath, object[] options)
+  {
     List<string> files = [];
-    foreach (object opt in options) {
+    foreach (object opt in options)
+    {
       if (opt is JObject jobj)
       {
         ArsenalOption option = jobj.ToObject<ArsenalOption>();
@@ -380,22 +549,28 @@ partial class ModManager {
           files.AddRange(option.Include!);
         }
       }
-      else if (opt is string opti) {
-        if (chosen.Contains(currentPath + "/" + opti)) {
+      else if (opt is string opti)
+      {
+        if (chosen.Contains(currentPath + "/" + opti))
+        {
           files.Add(opti);
         }
       }
     }
-    return [..files];
+    return [.. files];
   }
 
-  private static string[] CoalesceSubChoices(string baseName, ManifestChoices[] subChoices) {
+  private static string[] CoalesceSubChoices(string baseName, ManifestChoices[] subChoices)
+  {
     List<string> Choices = [];
-    foreach (ManifestChoices choice in subChoices) {
-      if (choice.Chosen) {
+    foreach (ManifestChoices choice in subChoices)
+    {
+      if (choice.Chosen)
+      {
         string combined = baseName != "" ? baseName + "/" + choice.Name : choice.Name;
         Choices.Add(combined);
-        if (choice.SubChoices != null) {
+        if (choice.SubChoices != null)
+        {
           Choices.AddRange(CoalesceSubChoices(combined, choice.SubChoices));
         }
       }
@@ -408,64 +583,72 @@ partial class ModManager {
   internal static readonly Regex GPUResourcesRegex = IsGPUResources();
   internal static readonly Regex StreamRegex = IsStream();
   internal static readonly Regex PatchInfoRegex = GrabPatchInfo();
-  
-  private static string[] GetFirstValidPatchSet(string[] set, int patchNum, List<string> existing) {
-    string[] sset = set.Select((v) => Path.Join(EntryPoint.HD2Path, new FileInfo(v).Name)).ToArray();
+
+  private static string[] GetFirstValidPatchSet(string[] set, int patchNum, List<string> existing)
+  {
+    string[] sset = [.. set.Select((v) => Path.Join(EntryPoint.HD2Path, new FileInfo(v).Name))];
     string[] extraChecks = [];
-    if (!sset.Any((v) => PatchAtEndRegex.Match(v).Success)) {
+    if (!sset.Any((v) => PatchAtEndRegex.Match(v).Success))
+    {
       string name = sset.First();
       string basename = name[..name.IndexOf('.')];
-      extraChecks = [ .. extraChecks, basename + ".patch_" + patchNum.ToString()];
+      extraChecks = [.. extraChecks, basename + ".patch_" + patchNum.ToString()];
     }
-    if (!sset.Any(GPUResourcesRegex.IsMatch)) {
+    if (!sset.Any(GPUResourcesRegex.IsMatch))
+    {
       string name = sset.FirstOrDefault((v) => PatchAtEndRegex.Match(v!).Success, null) ?? extraChecks.First((v) => PatchAtEndRegex.Match(v).Success);
       extraChecks = [.. extraChecks, name + ".gpu_resources"];
     }
-    if (!sset.Any(StreamRegex.IsMatch)) {
+    if (!sset.Any(StreamRegex.IsMatch))
+    {
       string name = sset.FirstOrDefault((v) => PatchAtEndRegex.Match(v!).Success, null) ?? extraChecks.First((v) => PatchAtEndRegex.Match(v).Success);
       extraChecks = [.. extraChecks, name + ".stream"];
     }
     int currentPatch = patchNum - 1;
-    while (sset.Any(existing.Contains) || extraChecks.Any(existing.Contains)) {
-      sset = sset.Select((v) => FileNumRegex.Replace(v, (currentPatch + 1).ToString())).ToArray();
-      extraChecks = extraChecks.Select((v) => FileNumRegex.Replace(v, (currentPatch + 1).ToString())).ToArray();
+    while (sset.Any(existing.Contains) || extraChecks.Any(existing.Contains))
+    {
+      sset = [.. sset.Select((v) => FileNumRegex.Replace(v, (currentPatch + 1).ToString()))];
+      extraChecks = [.. extraChecks.Select((v) => FileNumRegex.Replace(v, (currentPatch + 1).ToString()))];
       currentPatch++;
     }
     return sset;
   }
 
-  public void EnableMod(string name) {
+  public void EnableMod(string name)
+  {
     ModJson state = modState[name];
-    if (state.Enabled) return;
+    if (state.Enabled)
+    {
+      return;
+    }
+
     ArsenalMod mod = mods.First((m) => m.Guid == name);
-    string[][] filenames;
-    if (mod.Manifest.HasValue) {
-      filenames = ProcessChoicesIntoPatchSets(mod);
-    }
-    else {
-      filenames = ProcessFilenamesIntoPatchSets([.. mod.Files!]);
-    }
+    string[][] filenames = mod.Manifest.HasValue ? ProcessChoicesIntoPatchSets(mod) : ProcessFilenamesIntoPatchSets([.. mod.Files!]);
     Dictionary<string[], string> basenames = [];
-    foreach (string[] set in filenames) {
+    foreach (string[] set in filenames)
+    {
       string first = set.First();
       string fname = new FileInfo(first).Name;
       string withoutExt = fname.Contains('.') ? fname[..fname.IndexOf('.')] : fname;
       basenames[set] = withoutExt;
     }
     Dictionary<string, string[][]> nextAssoc = [];
-    foreach (string[] set in filenames) {
+    foreach (string[] set in filenames)
+    {
       string basename = basenames[set];
       if (nextAssoc.TryGetValue(basename, out string[][] tsets))
       {
         tsets = [.. tsets, set];
         nextAssoc[basename] = tsets;
       }
-      else {
+      else
+      {
         nextAssoc[basename] = [set];
       }
     }
-    foreach (KeyValuePair<string, string[][]> pair in nextAssoc) {
-      List<string> existingPatches = Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success).ToList();
+    foreach (KeyValuePair<string, string[][]> pair in nextAssoc)
+    {
+      List<string> existingPatches = [.. Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success)];
       if (fileRecords.TryGetValue(pair.Key, out FileAssociation[]? existing))
       {
         if (existing.Where((v) => v.AssociatedMod == name).FirstOrDefault(new FileAssociation() { AssociatedMod = "NoValidModFoundOrDefault" }).AssociatedMod != "NoValidModFoundOrDefault")
@@ -476,29 +659,30 @@ partial class ModManager {
         {
           AssociatedMod = name,
           Files = [..pair.Value.SelectMany((v, index) => {
-            string[] set = GetFirstValidPatchSet(v, index, existingPatches);
-            existingPatches.AddRange(set);
-            for (int i = 0; i < v.Length; i++) {
-              EntryPoint.queue.CreateSymbolicLink(v[i], set[i]);
-            }
-            return set;
-          })]
+              string[] set = GetFirstValidPatchSet(v, index, existingPatches);
+              existingPatches.AddRange(set);
+              for (int i = 0; i < v.Length; i++) {
+                EntryPoint.queue.CreateSymbolicLink(v[i], set[i]);
+              }
+              return set;
+            })]
         };
         existing = [.. existing, assoc];
         fileRecords[pair.Key] = existing;
       }
-      else {
+      else
+      {
         FileAssociation assoc = new()
         {
           AssociatedMod = name,
           Files = [..pair.Value.SelectMany((v, index) => {
-            string[] set = GetFirstValidPatchSet(v, index, existingPatches);
-            existingPatches.AddRange(set);
-            for (int i = 0; i < v.Length; i++) {
-              EntryPoint.queue.CreateSymbolicLink(v[i], set[i]);
-            }
-            return set;
-          })]
+              string[] set = GetFirstValidPatchSet(v, index, existingPatches);
+              existingPatches.AddRange(set);
+              for (int i = 0; i < v.Length; i++) {
+                EntryPoint.queue.CreateSymbolicLink(v[i], set[i]);
+              }
+              return set;
+            })]
         };
         fileRecords[pair.Key] = [assoc];
       }
@@ -507,16 +691,22 @@ partial class ModManager {
     SaveData();
   }
 
-  public void CheckForPatchGaps() {
-    foreach (KeyValuePair<string, FileAssociation[]> patches in fileRecords) {
+  public void CheckForPatchGaps()
+  {
+    foreach (KeyValuePair<string, FileAssociation[]> patches in fileRecords)
+    {
       HashSet<int> foundPatches = [];
-      foreach (FileAssociation patch in patches.Value) {
+      foreach (FileAssociation patch in patches.Value)
+      {
         HashSet<int> subNumbers = [];
-        foreach (string file in patch.Files) {
+        foreach (string file in patch.Files)
+        {
           Match match = FileNumRegex.Match(file);
-          if (match.Success) {
-            if (int.TryParse(match.Value, out int num)) {
-              subNumbers.Add(num);
+          if (match.Success)
+          {
+            if (int.TryParse(match.Value, out int num))
+            {
+              _ = subNumbers.Add(num);
             }
           }
         }
@@ -525,25 +715,35 @@ partial class ModManager {
       Dictionary<(int patch, FileAssociation associated), string[]> markedForMove = [];
       bool foundGap = false;
       int lastPatch = -1;
-      foreach (int patchNum in foundPatches.OrderBy((v) => v)) {
+      foreach (int patchNum in foundPatches.OrderBy((v) => v))
+      {
         int diff = Math.Abs(patchNum - lastPatch);
-        if (diff > 1) {
+        if (diff > 1)
+        {
           foundGap = true;
           break;
         }
         lastPatch = patchNum;
       }
-      if (foundGap) {
-        foreach (FileAssociation assoc in patches.Value) {
-          foreach (string file in assoc.Files) {
+      if (foundGap)
+      {
+        foreach (FileAssociation assoc in patches.Value)
+        {
+          foreach (string file in assoc.Files)
+          {
             Match match = FileNumRegex.Match(file);
-            if (match.Success) {
-              if (int.TryParse(match.Value, out int num)) {
-                if (num > lastPatch) {
-                  if (markedForMove.TryGetValue((num, assoc), out string[] files)) {
+            if (match.Success)
+            {
+              if (int.TryParse(match.Value, out int num))
+              {
+                if (num > lastPatch)
+                {
+                  if (markedForMove.TryGetValue((num, assoc), out string[] files))
+                  {
                     markedForMove[(num, assoc)] = [.. files, file];
                   }
-                  else {
+                  else
+                  {
                     markedForMove[(num, assoc)] = [file];
                   }
                 }
@@ -552,32 +752,39 @@ partial class ModManager {
           }
         }
         Dictionary<string, FileAssociation> newAssociations = [];
-        List<string> existing = Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success).ToList();
-        foreach (KeyValuePair<(int patch, FileAssociation associated), string[]> kvp in markedForMove) {
-          if (newAssociations.TryGetValue(kvp.Key.associated.AssociatedMod, out FileAssociation assoc)) {
-            string[][] sets = ProcessFilenamesIntoPatchSets([..kvp.Value]);
+        List<string> existing = [.. Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success)];
+        foreach (KeyValuePair<(int patch, FileAssociation associated), string[]> kvp in markedForMove)
+        {
+          if (newAssociations.TryGetValue(kvp.Key.associated.AssociatedMod, out FileAssociation assoc))
+          {
+            string[][] sets = ProcessFilenamesIntoPatchSets([.. kvp.Value]);
             string[] newF = [];
-            foreach (string[] set in sets) {
+            foreach (string[] set in sets)
+            {
               string[] newFiles = GetFirstValidPatchSet(set, 0, existing);
-              for (int i = 0; i < set.Length; i++) {
+              for (int i = 0; i < set.Length; i++)
+              {
                 EntryPoint.queue.Move(set[i], newFiles[i]);
                 existing.Add(newFiles[i]);
-                existing.Remove(set[i]);
+                _ = existing.Remove(set[i]);
               }
               EntryPoint.queue.WaitForEmpty();
               newF = [.. newF, .. newFiles];
             }
-            newAssociations[kvp.Key.associated.AssociatedMod] = assoc with { Files = [.. assoc.Files, ..newF] };
+            newAssociations[kvp.Key.associated.AssociatedMod] = assoc with { Files = [.. assoc.Files, .. newF] };
           }
-          else {
-            string[][] sets = ProcessFilenamesIntoPatchSets([..kvp.Value]);
+          else
+          {
+            string[][] sets = ProcessFilenamesIntoPatchSets([.. kvp.Value]);
             string[] newF = [];
-            foreach (string[] set in sets) {
+            foreach (string[] set in sets)
+            {
               string[] newFiles = GetFirstValidPatchSet(set, 0, existing);
-              for (int i = 0; i < set.Length; i++) {
+              for (int i = 0; i < set.Length; i++)
+              {
                 EntryPoint.queue.Move(set[i], newFiles[i]);
                 existing.Add(newFiles[i]);
-                existing.Remove(set[i]);
+                _ = existing.Remove(set[i]);
               }
               EntryPoint.queue.WaitForEmpty();
               newF = [.. newF, .. newFiles];
@@ -589,9 +796,10 @@ partial class ModManager {
             };
           }
         }
-        foreach (KeyValuePair<string, FileAssociation> kvp in newAssociations) {
+        foreach (KeyValuePair<string, FileAssociation> kvp in newAssociations)
+        {
           FileAssociation[] ex = fileRecords[patches.Key];
-          ex = ex.Where((v) => v.AssociatedMod != kvp.Key).ToArray();
+          ex = [.. ex.Where((v) => v.AssociatedMod != kvp.Key)];
           ex = [.. ex, kvp.Value];
           fileRecords[patches.Key] = ex;
         }
@@ -601,19 +809,19 @@ partial class ModManager {
     SaveData();
   }
 
-  public void DisableMod(string name) {
+  public void DisableMod(string name)
+  {
     ModJson state = modState[name];
-    if (!state.Enabled) return;
+    if (!state.Enabled)
+    {
+      return;
+    }
+
     ArsenalMod mod = mods.First((m) => m.Guid == name);
-    string[][] filenames;
-    if (mod.Manifest.HasValue) {
-      filenames = ProcessChoicesIntoPatchSets(mod);
-    }
-    else {
-      filenames = ProcessFilenamesIntoPatchSets([..mod.Files!]);
-    }
+    string[][] filenames = mod.Manifest.HasValue ? ProcessChoicesIntoPatchSets(mod) : ProcessFilenamesIntoPatchSets([.. mod.Files!]);
     Dictionary<string[], string> basenames = [];
-    foreach (string[] set in filenames) {
+    foreach (string[] set in filenames)
+    {
       string fset = set.First();
       string fname = new FileInfo(fset).Name;
       string withoutExt = fname.Contains('.') ? fname[..fname.IndexOf('.')] : fname;
@@ -621,112 +829,130 @@ partial class ModManager {
     }
     HashSet<string> check = [];
     Dictionary<string, HashSet<string>> deleting = [];
-    foreach (string[] set in filenames) {
+    foreach (string[] set in filenames)
+    {
       string basename = basenames[set];
       bool valueGotten = fileRecords.TryGetValue(basename, out FileAssociation[]? value);
       FileAssociation[] associations = valueGotten ? value! : [];
       FileAssociation? ourAssociation = null;
-      foreach (FileAssociation assoc in associations) {
-        if (assoc.AssociatedMod == name) {
+      foreach (FileAssociation assoc in associations)
+      {
+        if (assoc.AssociatedMod == name)
+        {
           ourAssociation = assoc;
           break;
         }
       }
-      if (ourAssociation.HasValue) {
-        if (valueGotten) {
-          check.Add(basename);
+      if (ourAssociation.HasValue)
+      {
+        if (valueGotten)
+        {
+          _ = check.Add(basename);
         }
-        foreach (string file in ourAssociation.Value.Files) {
-          if (deleting.TryGetValue(basename, out HashSet<string>? v)) {
-            v.Add(file);
+        foreach (string file in ourAssociation.Value.Files)
+        {
+          if (deleting.TryGetValue(basename, out HashSet<string>? v))
+          {
+            _ = v.Add(file);
           }
-          else {
+          else
+          {
             deleting[basename] = [file];
           }
         }
       }
     }
-    foreach (KeyValuePair<string[], string> basename in basenames) {
-      foreach (string file in deleting[basename.Value]) {
+    foreach (KeyValuePair<string[], string> basename in basenames)
+    {
+      foreach (string file in deleting[basename.Value])
+      {
         if (File.Exists(file))
+        {
           EntryPoint.queue.Delete(file);
+        }
       }
     }
     EntryPoint.queue.WaitForEmpty();
-    foreach (string b in check) {
+    foreach (string b in check)
+    {
       FileAssociation[] assoc = fileRecords[b];
-      assoc = assoc.Where((v) => v.AssociatedMod != mod.Guid).ToArray();
+      assoc = [.. assoc.Where((v) => v.AssociatedMod != mod.Guid)];
       if (assoc.Length > 0)
+      {
         fileRecords[b] = assoc;
+      }
       else
-        fileRecords.Remove(b);
+      {
+        _ = fileRecords.Remove(b);
+      }
     }
-    /*foreach (KeyValuePair<string, FileAssociation[]> downgrading in toDowngrade) {
-      if (downgrading.Value.Length == 0 && fileRecords[downgrading.Key].Length == 1)  {
-        fileRecords.Remove(downgrading.Key);
-        continue;
-      };
-      if (downgrading.Value.Length == 0 && fileRecords[downgrading.Key].Length == 0) {
-        fileRecords.Remove(downgrading.Key);
-        continue;
-      };
-      fileRecords[downgrading.Key] = fileRecords[downgrading.Key].Where((v) => v.AssociatedMod != mod.Guid).ToArray();
-    }*/
     modState[name] = state with { Enabled = false };
     SaveData();
   }
 
-  public void UninstallMod(string name) {
+  public void UninstallMod(string name)
+  {
     DisableMod(name);
-    modState.Remove(name);
+    _ = modState.Remove(name);
     ArsenalMod mod = mods.First((m) => m.Guid == name);
     string ModDirectoryPath = Path.Join(ModHolder, mod.FolderName);
     Directory.Delete(ModDirectoryPath, true);
-    mods.Remove(mod);
-    modChoices.Remove(name);
-    aliases.Remove(name);
-    priorities = priorities.Where(v => v != name).ToArray();
+    _ = mods.Remove(mod);
+    _ = modChoices.Remove(name);
+    _ = aliases.Remove(name);
+    priorities = [.. priorities.Where(v => v != name)];
     SaveData();
   }
 
-  private void ProcessMods() {
-    if (!Directory.Exists(ModHolder)) {
-      Directory.CreateDirectory(ModHolder);
+  private void ProcessMods()
+  {
+    if (!Directory.Exists(ModHolder))
+    {
+      _ = Directory.CreateDirectory(ModHolder);
       return;
     }
-    string[] directories = Directory.EnumerateDirectories(ModHolder).ToArray();
+    string[] directories = [.. Directory.EnumerateDirectories(ModHolder)];
     foreach (string dir in directories)
-      ProcessMod(dir);
+    {
+      _ = ProcessMod(dir);
+    }
+
     ArsenalMod[] arr = [.. mods];
     Array.Sort(arr, static (x, y) => string.Compare(x.Name, y.Name));
     mods = [.. arr];
   }
 
-  internal ArsenalMod ProcessMod(string path) {
+  internal ArsenalMod ProcessMod(string path)
+  {
     bool hasManifest = File.Exists(Path.Join(path, "manifest.json"));
-    if (hasManifest) {
+    if (hasManifest)
+    {
       ArsenalMod mod = ModWithManifest(path);
-      mods = mods.Where((v) => v.Guid != mod.Guid).ToList();
+      mods = [.. mods.Where((v) => v.Guid != mod.Guid)];
       mods.Add(mod);
       modAdded.Invoke(null, mod);
-      if (!priorities.Contains(mod.Guid)) {
+      if (!priorities.Contains(mod.Guid))
+      {
         priorities = [.. priorities, mod.Guid];
       }
       return mod;
     }
-    else {
+    else
+    {
       ArsenalMod mod = ModWithoutManifest(path);
-      mods = mods.Where((v) => v.Guid != mod.Guid).ToList();
+      mods = [.. mods.Where((v) => v.Guid != mod.Guid)];
       mods.Add(mod);
       modAdded.Invoke(null, mod);
-      if (!priorities.Contains(mod.Guid)) {
+      if (!priorities.Contains(mod.Guid))
+      {
         priorities = [.. priorities, mod.Guid];
       }
       return mod;
     }
   }
 
-  private static string GetName(string path) {
+  private static string GetName(string path)
+  {
     if (File.Exists(path))
     {
       return new FileInfo(path).Directory?.Name ?? string.Empty;
@@ -737,11 +963,17 @@ partial class ModManager {
     }
     return string.Empty;
   }
-  
-  private static ManifestChoices[] GenerateDefaultManifestChoices(ArsenalManifest mod) {
+
+  private static ManifestChoices[] GenerateDefaultManifestChoices(ArsenalManifest mod)
+  {
     List<ManifestChoices> choices = [];
-    if (mod.Options == null || mod.Options.Length == 0) return [];
-    foreach (object opt in mod.Options) {
+    if (mod.Options == null || mod.Options.Length == 0)
+    {
+      return [];
+    }
+
+    foreach (object opt in mod.Options)
+    {
       if (opt is JObject jobj)
       {
         ArsenalOption option = jobj.ToObject<ArsenalOption>();
@@ -759,7 +991,8 @@ partial class ModManager {
         }
         choices.Add(choice);
       }
-      else if (opt is string opti) {
+      else if (opt is string opti)
+      {
         ManifestChoices choice = new()
         {
           Name = opti,
@@ -772,28 +1005,37 @@ partial class ModManager {
     return [.. choices];
   }
 
-  private static void ApplyChoices(ManifestChoices[] choices, string[] paths) {
-    foreach (ManifestChoices choice in choices) {
-      if (paths.Contains(choice.Name)) {
+  private static void ApplyChoices(ManifestChoices[] choices, string[] paths)
+  {
+    foreach (ManifestChoices choice in choices)
+    {
+      if (paths.Contains(choice.Name))
+      {
         choice.Chosen = true;
       }
-      if (choice.SubChoices != null) {
+      if (choice.SubChoices != null)
+      {
         ApplySubChoices(choice.SubChoices, paths, choice.Name + "/");
       }
     }
   }
 
-  private static void ApplySubChoices(ManifestChoices[] choices, string[] paths, string currentPath) {
-    foreach (ManifestChoices choice in choices) {
-      if (paths.Contains(currentPath + choice.Name)) {
+  private static void ApplySubChoices(ManifestChoices[] choices, string[] paths, string currentPath)
+  {
+    foreach (ManifestChoices choice in choices)
+    {
+      if (paths.Contains(currentPath + choice.Name))
+      {
         choice.Chosen = true;
       }
     }
   }
 
-  private static ManifestChoices[] GetSubChoices(object[] options) {
+  private static ManifestChoices[] GetSubChoices(object[] options)
+  {
     List<ManifestChoices> choices = [];
-    foreach (object opt in options) {
+    foreach (object opt in options)
+    {
       if (opt is JObject jobj)
       {
         ArsenalSubOption option = jobj.ToObject<ArsenalSubOption>();
@@ -807,7 +1049,8 @@ partial class ModManager {
         };
         choices.Add(choice);
       }
-      else if (opt is string opti) {
+      else if (opt is string opti)
+      {
         ManifestChoices choice = new()
         {
           Chosen = false,
@@ -820,7 +1063,8 @@ partial class ModManager {
     return [.. choices];
   }
 
-  private ArsenalMod ModWithManifest(string path) {
+  private ArsenalMod ModWithManifest(string path)
+  {
     ArsenalManifest manifest = JsonConvert.DeserializeObject<ArsenalManifest>(File.ReadAllText(Path.Join(path, "manifest.json")));
     if (!modState.TryGetValue(manifest.Guid, out ModJson state))
     {
@@ -830,18 +1074,24 @@ partial class ModManager {
         Enabled = false
       };
       modState[manifest.Guid] = state;
-    };
+    }
+    ;
     string[]? files = null;
-    if (!processedChoices.ContainsKey(manifest.Guid)) {
+    if (!processedChoices.ContainsKey(manifest.Guid))
+    {
       ManifestChoices[] choices = GenerateDefaultManifestChoices(manifest);
       if (choices.Length > 0)
       {
         if (modChoices.TryGetValue(manifest.Guid, out string[]? value))
+        {
           ApplyChoices(choices, value);
+        }
+
         processedChoices[manifest.Guid] = choices;
       }
-      else {
-        files = GetFolderRecursively(path).Where((v) => FileNumRegex.Match(v).Success).ToArray();
+      else
+      {
+        files = [.. GetFolderRecursively(path).Where(static (v) => FileNumRegex.Match(v).Success)];
       }
     }
     ArsenalMod mod = new()
@@ -855,7 +1105,8 @@ partial class ModManager {
     return mod;
   }
 
-  private ArsenalMod ModWithoutManifest(string path) {
+  private ArsenalMod ModWithoutManifest(string path)
+  {
     string name = GetName(path);
     if (!modState.TryGetValue(name, out ModJson state))
     {
@@ -865,11 +1116,12 @@ partial class ModManager {
         Enabled = false
       };
       modState[name] = state;
-    };
+    }
+    ;
     ArsenalMod mod = new()
     {
       Version = SemVersion.Parse(state.Version, SemVersionStyles.Any),
-      Files = Directory.EnumerateFiles(path).Where((v) => FileNumRegex.Match(v).Success).ToArray(),
+      Files = [.. Directory.EnumerateFiles(path).Where(static (v) => FileNumRegex.Match(v).Success)],
       Name = name,
       FolderName = name
     };
