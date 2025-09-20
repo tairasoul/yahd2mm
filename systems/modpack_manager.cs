@@ -55,7 +55,7 @@ class ModpackManager {
 
   public void RemoveModFromModpack(string name, string modpack) {
     if (!modpacks.TryGetValue(modpack, out Modpack pack)) return;
-    modpacks[modpack] = pack with { mods = pack.mods.Where((v) => v.guid != name).ToArray() } ;
+    modpacks[modpack] = pack with { mods = [.. pack.mods.Where((v) => v.guid != name)] } ;
     SaveData();
   }
 
