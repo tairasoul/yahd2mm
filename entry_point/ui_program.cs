@@ -235,7 +235,10 @@ partial class EntryPoint
     float width = ImGui.GetContentRegionAvail().X;
     ImGui.BeginChild("download" + progress.Filename, new Vector2(width, 100), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
     ImGui.Text($"Filename: {progress.Filename}");
-    ImGui.Text($"Mod name: {progress.Modname}");
+    if (progress.Modname == "ExtractFailed")
+      ImGui.Text("Mod extraction failed.");
+    else
+      ImGui.Text($"Mod name: {progress.Modname}");
     ImGui.Text($"Mod size: {new Humanizer.Bytes.ByteSize(progress.Size).Humanize()}");
     ImGui.EndChild();
   }
