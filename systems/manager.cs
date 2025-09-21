@@ -51,6 +51,8 @@ class Manager {
       using Stream stream = File.OpenRead(file);
       using IReader reader = ReaderFactory.Open(stream);
       string outputDir = Path.Join(ModManager.ModHolder, Path.GetFileNameWithoutExtension(file));
+      if (Directory.Exists(outputDir))
+        Directory.Delete(outputDir, true);
       Directory.CreateDirectory(outputDir);
       reader.WriteAllToDirectory(outputDir, new()
       {
@@ -86,6 +88,8 @@ class Manager {
       using Stream stream = File.OpenRead(file);
       using SevenZipArchive archive = new(stream);
       string outputDir = Path.Join(ModManager.ModHolder, Path.GetFileNameWithoutExtension(file));
+      if (Directory.Exists(outputDir))
+        Directory.Delete(outputDir, true);
       Directory.CreateDirectory(outputDir);
       archive.ExtractToDirectory(outputDir);
       string[] files = [.. Directory.EnumerateFiles(outputDir), .. Directory.EnumerateDirectories(outputDir)];
@@ -124,14 +128,14 @@ class Manager {
     {
       if (output.Item2 != nxm_url) return;
       downloadManager.DownloadFinished -= d;
-      string ModName = "Failed to extract.";
+      string ModName = "ExtractFailed";
       try
       {
         using Stream stream = File.OpenRead(output.Item3);
         using IReader reader = ReaderFactory.Open(stream);
         string outputDir = Path.Join(ModManager.ModHolder, Path.GetFileNameWithoutExtension(output.Item1));
         if (Directory.Exists(outputDir))
-          Directory.Delete(outputDir);
+          Directory.Delete(outputDir, true);
         Directory.CreateDirectory(outputDir);
         reader.WriteAllToDirectory(outputDir, new()
         {
@@ -171,7 +175,7 @@ class Manager {
           using SevenZipArchive archive = new(stream);
           string outputDir = Path.Join(ModManager.ModHolder, Path.GetFileNameWithoutExtension(output.Item1));
           if (Directory.Exists(outputDir))
-            Directory.Delete(outputDir);
+            Directory.Delete(outputDir, true);
           Directory.CreateDirectory(outputDir);
           archive.ExtractToDirectory(outputDir);
           string[] files = [.. Directory.EnumerateFiles(outputDir), .. Directory.EnumerateDirectories(outputDir)];
