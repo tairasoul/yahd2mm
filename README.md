@@ -66,7 +66,7 @@ tab for the nxm handler
 
 any mods being downloaded are here
 
-no cancelling/pausing (lazy :3)
+no cancelling/pausing (can't for the life of me figure out how to do this without causing a segfault for no visible reason)
 
 ### Completed Downloads
 
