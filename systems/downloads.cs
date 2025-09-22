@@ -40,6 +40,8 @@ class DownloadManager {
 
   public DownloadManager() {
     client = new();
+    client.DefaultRequestHeaders.Add("User-Agent", "yahd2mm/0.3.6 .NET/9.0");
+    client.DefaultRequestHeaders.Add("apikey", EntryPoint.APIKey);
   }
 
   private static ProcessedLink ProcessLink(string url) {
@@ -71,41 +73,25 @@ class DownloadManager {
     return link;
   }
 
-    private static string? GetFileNameFromHeader(HttpResponseMessage response)
+  private static string? GetFileNameFromUrl(string url)
+  {
+    try
     {
-      if (response.Content.Headers.ContentDisposition?.FileNameStar != null)
-      {
-        return response.Content.Headers.ContentDisposition.FileNameStar;
-      }
-      if (response.Content.Headers.ContentDisposition?.FileName != null)
-      {
-        return response.Content.Headers.ContentDisposition.FileName.Trim('\"');
-      }
+      Uri uri = new(url);
+      string path = uri.AbsolutePath;
+      string filename = Path.GetFileName(path);
+      return !string.IsNullOrEmpty(filename) ? filename : null;
+    }
+    catch
+    {
       return null;
     }
-
-    private static string? GetFileNameFromUrl(string url)
-    {
-      try
-      {
-        Uri uri = new(url);
-        string path = uri.AbsolutePath;
-        string filename = Path.GetFileName(path);
-        return !string.IsNullOrEmpty(filename) ? filename : null;
-      }
-      catch
-      {
-        return null;
-      }
-    }
+  }
 
   private async Task<DownloadLinkAPIResponse> GetDownloadLink(string url) {
     ProcessedLink link = ProcessLink(url);
     string constructed = $"https://api.nexusmods.com/v1/games/helldivers2/mods/{link.modId}/files/{link.fileId}/download_link.json?key={link.key}&expires={link.expires}";
-    HttpRequestMessage request = new(HttpMethod.Get, constructed);
-    request.Headers.Add("apikey", EntryPoint.APIKey);
-    request.Headers.Add("User-Agent", "yahd2mm/0.3.6 .NET/9.0");
-    HttpResponseMessage message = client.Send(request);
+    HttpResponseMessage message = await client.GetAsync(constructed);
     string raw = await message.Content.ReadAsStringAsync();
     DownloadLinkAPIResponse[] response = JsonConvert.DeserializeObject<DownloadLinkAPIResponse[]>(raw)!;
     return response!.First();
@@ -115,10 +101,7 @@ class DownloadManager {
     ProcessedLink link = ProcessLink(url);
     string id = link.modId;
     string api_url = $"https://api.nexusmods.com/v1/games/helldivers2/mods/{id}.json";
-    HttpRequestMessage request = new(HttpMethod.Get, api_url);
-    request.Headers.Add("User-Agent", "yahd2mm/0.3.6 .NET/9.0");
-    request.Headers.Add("apikey", EntryPoint.APIKey);
-    HttpResponseMessage message = client.Send(request);
+    HttpResponseMessage message = await client.GetAsync(api_url);
     string raw = await message.Content.ReadAsStringAsync();
     ModInfoAPIResponse response = JsonConvert.DeserializeObject<ModInfoAPIResponse>(raw);
     return response;
@@ -127,10 +110,11 @@ class DownloadManager {
   private ConcurrentDownload DownloadFile(string url, string originalURL, string output, IProgress<DownloadProgress> progress = null!) {
     Task mainTask = Task.Run(async () =>
     {
+      
       using HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
       response.EnsureSuccessStatusCode();
       ModInfoAPIResponse modInfo = await GetModInfo(originalURL);
-      string filename = Uri.UnescapeDataString(GetFileNameFromHeader(response) ?? GetFileNameFromUrl(url) ?? "downloaded_mod.zip");
+      string filename = Uri.UnescapeDataString(GetFileNameFromUrl(url) ?? "downloaded_mod.zip");
       filename = (modInfo.name + Path.GetExtension(filename)) ?? filename;
       string fullPath = Path.Join(output, filename);
       var totalBytes = response.Content.Headers.ContentLength ?? -1L;
