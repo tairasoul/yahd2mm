@@ -888,12 +888,14 @@ partial class EntryPoint
         }
       }
       ImGui.EndGroup();
-      if (choice.SubChoices != null) {
+      if (choice.SubChoices != null)
+      {
         ImGui.Indent();
-        ImGui.Text("Sub Options");
-        ImGui.Indent();
-        DrawSubChoices(choice.SubChoices, mod.Guid, mod.FolderName, choice.Name!);
-        ImGui.Unindent();
+        if (ImGui.CollapsingHeader($"Sub Options##{mod.Guid}{choice.Name}")) {
+          ImGui.Indent();
+          DrawSubChoices(choice.SubChoices, mod.Guid, mod.FolderName, choice.Name!);
+          ImGui.Unindent();
+        }
         ImGui.Unindent();
       }
       ImGui.Spacing();
