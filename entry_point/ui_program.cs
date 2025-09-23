@@ -426,10 +426,6 @@ partial class EntryPoint
       {
         ImGui.Indent();
         ImGui.PushID(packs.Key);
-        foreach (ModpackMod mod in packs.Value.mods)
-        {
-          DoModpackMod(mod, packs.Key);
-        }
         ImGui.BeginGroup();
         if (ImGui.Button("Remove all mods"))
         {
@@ -461,9 +457,17 @@ partial class EntryPoint
           manager.modpackManager.DeleteModpack(packs.Key);
         }
         ImGui.EndGroup();
-        ImGui.PopID();
+        if (ImGui.CollapsingHeader("Mods"))
+        {
+          ImGui.Indent();
+          foreach (ModpackMod mod in packs.Value.mods)
+          {
+            DoModpackMod(mod, packs.Key);
+          }
+          ImGui.Unindent();
+        }
         ImGui.Unindent();
-        ImGui.Separator();
+        ImGui.PopID();
       }
     }
     ImGui.EndChild();
