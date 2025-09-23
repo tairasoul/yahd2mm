@@ -58,7 +58,7 @@ namespace Veldrid.ImageSharp
             }
             else
             {
-                Images = new Image<Rgba32>[] { image };
+                Images = [image];
             }
         }
 
