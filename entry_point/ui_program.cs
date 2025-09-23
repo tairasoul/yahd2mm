@@ -394,12 +394,24 @@ partial class EntryPoint
     mods = [.. mods.OrderByDescending((v) => manager.modManager.favourites.Contains(v.Guid))];
     if (SearchingString != "" && SearchingString != string.Empty)
     {
+      static int GetRatio(ArsenalMod mod) {
+        if (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data)) {
+          if (manager.nexusIds.Where((v) => v.Value.id == data.id).Count() > 1) {
+            if (data.mainMod.Contains(SearchingString, StringComparison.OrdinalIgnoreCase)) {
+              int nameRatio = Fuzz.Ratio(data.mainMod, SearchingString);
+              int modRatio = Fuzz.Ratio(mod.Name, SearchingString);
+              return nameRatio > modRatio ? nameRatio : modRatio;
+            }
+          }
+        }
+        return Fuzz.Ratio(mod.Name, SearchingString);
+      }
       mods = [.. mods
-      .Where(mod => manager.modManager.modAliases[mod.Guid].Contains(SearchingString, StringComparison.OrdinalIgnoreCase))
+      .Where(mod => manager.modManager.modAliases[mod.Guid].Contains(SearchingString, StringComparison.OrdinalIgnoreCase) || (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data) && manager.nexusIds.Where((v) => v.Value.id == data.id).Count() > 1 && data.mainMod.Contains(SearchingString, StringComparison.OrdinalIgnoreCase)))
       .Select(static mod => new
       {
         Mod = mod,
-        Score = Fuzz.Ratio(mod.Name, SearchingString),
+        Score = GetRatio(mod),
         IsPrefix = manager.modManager.modAliases[mod.Guid].StartsWith(SearchingString, StringComparison.OrdinalIgnoreCase),
         Contains = manager.modManager.modAliases[mod.Guid].Contains(SearchingString, StringComparison.OrdinalIgnoreCase)
       })

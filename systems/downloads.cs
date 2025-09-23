@@ -64,7 +64,7 @@ class DownloadManager {
 
   public DownloadManager() {
     client = new();
-    client.DefaultRequestHeaders.Add("User-Agent", "yahd2mm/0.3.8 .NET/9.0");
+    client.DefaultRequestHeaders.Add("User-Agent", "yahd2mm/0.3.9 .NET/9.0");
     client.DefaultRequestHeaders.Add("apikey", EntryPoint.APIKey);
   }
 
