@@ -1075,7 +1075,6 @@ partial class ModManager
       };
       modState[manifest.Guid] = state;
     }
-    ;
     string[]? files = null;
     if (!processedChoices.ContainsKey(manifest.Guid))
     {
