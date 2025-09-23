@@ -90,6 +90,8 @@ also works with already-extracted mod folders, will move them instead (because c
 
 ## todo
 
-more nexus integration (properly get mod version from nexus, check for updates, show author)
+more nexus integration (properly get mod version from nexus, show author, open mod on nexus)
 
-implement refreshing for installing mods manually to the mods folder
+custom groups in mod list
+
+properly deploy with priorities when enabling/disabling in mod list
