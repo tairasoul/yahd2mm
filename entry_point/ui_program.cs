@@ -18,13 +18,14 @@ partial class EntryPoint
 {
   private static bool NeedsKey = !File.Exists(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "key.txt"));
   private static bool NeedsHD2DataPath = !(File.Exists(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")) && Directory.Exists(File.ReadAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")).Trim()));
+  internal static bool UseHardlinks;
   private static Sdl2Window window;
   private static GraphicsDevice gd;
   private static CommandList cl;
   private static ImGuiRenderer controller;
   private static bool IsAdministrator() {
     if (OperatingSystem.IsWindows()) {
-      return Environment.IsPrivilegedProcess;
+      return Environment.IsPrivilegedProcess || Path.GetPathRoot(File.ReadAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
     }
     return true;
   }
@@ -69,9 +70,10 @@ partial class EntryPoint
       gd.MainSwapchain.Resize((uint)window.Width, (uint)window.Height);
       controller.WindowResized(window.Width, window.Height);
     };
-    if (!NeedsKey && !NeedsHD2DataPath)
+    if (!NeedsKey && !NeedsHD2DataPath && IsAdministrator())
     {
       StartManager();
+      UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
     }
     Stopwatch stopwatch = Stopwatch.StartNew();
     float deltaTime = 0f;
@@ -111,7 +113,7 @@ partial class EntryPoint
     ImGui.SetNextWindowPos(new Vector2(0));
     ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 0f);
     ImGui.Begin("yahd2mm", ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize);
-    if (!NeedsKey && !NeedsHD2DataPath)
+    if (!NeedsKey && !NeedsHD2DataPath && IsAdministrator())
     {
       ImGui.BeginTabBar("Selection");
       if (ImGui.BeginTabItem("Mod List"))
@@ -177,10 +179,10 @@ partial class EntryPoint
       ImGui.OpenPopup("Key Prompt");
     }
     PromptForKey();
-    /*if (!NeedsHD2DataPath && !NeedsHD2DataPath && !IsAdministrator()) {
+    if (!NeedsHD2DataPath && !NeedsHD2DataPath && !IsAdministrator()) {
       ImGui.OpenPopup("Admin Permissions");
-    }*/
-    //PromptForAdmin();
+    }
+    PromptForAdmin();
     ImGui.End();
     ImGui.PopStyleVar(1);
   }
@@ -192,8 +194,9 @@ partial class EntryPoint
     ImGui.SetNextWindowPos(ImGui.GetMainViewport().GetCenter(), ImGuiCond.Always, new Vector2(0.5f, 0.5f));
     if (ImGui.BeginPopupModal("Admin Permissions", ImGuiWindowFlags.Popup | ImGuiWindowFlags.Modal | ImGuiWindowFlags.AlwaysAutoResize))
     {
-      ImGui.Text("yahd2mm needs to relaunch with admin permissions to correctly deploy mods.");
-      ImGui.Text("It will not function without doing so.");
+      ImGui.Text("Your Helldivers 2 install is on a different drive than where yahd2mm downloads mods to.");
+      ImGui.Text("Hardlinks do not function across drive boundaries, and as such symlinks are required.");
+      ImGui.Text("Symlinks require admin permissions. yahd2mm will relaunch with admin permissions.");
       if (ImGui.Button("I understand.")) {
         manager.server.Dispose();
         ProcessStartInfo info = new()
@@ -941,6 +944,7 @@ partial class EntryPoint
           NeedsHD2DataPath = false;
           if (!NeedsKey) {
             StartManager();
+            UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
           }
           ImGui.CloseCurrentPopup();
         }
@@ -967,6 +971,7 @@ partial class EntryPoint
           NeedsKey = false;
           if (!NeedsHD2DataPath) {
             StartManager();
+            UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
           }
           ImGui.CloseCurrentPopup();
         }

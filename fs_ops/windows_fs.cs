@@ -44,7 +44,10 @@ class WindowsFilesystemQueue : IFilesystemOperations {
               File.Move(operation.targets[0], operation.targets[1]);
               break;
             case OperationType.CreateSymlink:
-              CreateHardLink(operation.modifyOutput?.Invoke(operation.targets[1]) ?? operation.targets[1], operation.targets[0], IntPtr.Zero);
+              if (EntryPoint.UseHardlinks) 
+                CreateHardLink(operation.modifyOutput?.Invoke(operation.targets[1]) ?? operation.targets[1], operation.targets[0], IntPtr.Zero);
+              else
+                File.CreateSymbolicLink(operation.modifyOutput?.Invoke(operation.targets[1]) ?? operation.targets[1], operation.targets[0]);
               //File.Copy(operation.targets[0], operation.targets[1]);
               break;
           }
