@@ -1074,10 +1074,23 @@ partial class EntryPoint
     if (ImGui.BeginPopupModal("Key Prompt", ImGuiWindowFlags.Popup | ImGuiWindowFlags.Modal | ImGuiWindowFlags.AlwaysAutoResize))
     {
       ImGui.Text("Nexus API key is required.");
+      if (ImGui.Button("Open API keys page (needs personal key, at the bottom)")) {
+        if (OperatingSystem.IsLinux()) {
+          System.Diagnostics.Process.Start("xdg-open", "\"https://next.nexusmods.com/settings/api-keys\"");
+        }
+        else {
+          System.Diagnostics.Process.Start("explorer.exe", "\"https://next.nexusmods.com/settings/api-keys\"");
+        }
+      }
       ImGui.Text($"Make a plaintext file at {Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "key.txt")} and input your API key.");
-      if (ImGui.Button("Copy folder path to clipboard"))
+      if (ImGui.Button("Open folder"))
       {
-        ImGui.SetClipboardText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm"));
+        if (OperatingSystem.IsLinux()) {
+          System.Diagnostics.Process.Start("xdg-open", $"\"{Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm")}\"");
+        }
+        else {
+          System.Diagnostics.Process.Start("explorer.exe", $"\"{Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm")}\"");
+        }
       }
       if (ImGui.Button("Key file created?"))
       {
