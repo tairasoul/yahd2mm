@@ -116,7 +116,7 @@ class WindowsFilesystemQueue : IFilesystemOperations {
     List<Task> tasksToWaitFor;
     lock (_lock)
     {
-      tasksToWaitFor = new List<Task>(_inProgressTasks);
+      tasksToWaitFor = [.. _inProgressTasks];
     }
     Task.WhenAll(tasksToWaitFor).Wait();
   }
