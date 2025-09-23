@@ -66,7 +66,7 @@ tab for the nxm handler
 
 any mods being downloaded are here
 
-no cancelling/pausing (can't for the life of me figure out how to do this without causing a segfault for no visible reason)
+can cancel/pause download, but paused downloads will not persist if you relaunch the manager yet
 
 ### Completed Downloads
 
@@ -91,7 +91,5 @@ also works with already-extracted mod folders, will move them instead (because c
 ## todo
 
 more nexus integration (properly get mod version from nexus, check for updates, show author)
-
-implement cancelling/pausing for downloads
 
 implement refreshing for installing mods manually to the mods folder

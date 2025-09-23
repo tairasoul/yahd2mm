@@ -222,26 +222,31 @@ partial class EntryPoint
 
   private static void DoCompletedDownloads() {
     if (ImGui.Button("Clear")) {
-      manager.completed.Clear();
+      manager.downloadManager.progresses = new(manager.downloadManager.progresses.ToDictionary().Where((v) => v.Value.status != DownloadStatus.Done));
     }
     ImGui.BeginChild("ScrollableDownloads", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders, ImGuiWindowFlags.AlwaysVerticalScrollbar);
-    foreach (FinishedDownload progress in manager.completed.Values.ToList())
+    foreach (DownloadState progress in manager.downloadManager.progresses.ToList().Where((v) => v.Value.status == DownloadStatus.Done).Select((v) => v.Value))
     {
       DoCompletedDownload(progress);
     }
     ImGui.EndChild();
   }
 
-  private static void DoCompletedDownload(FinishedDownload progress) {
+  private static void DoCompletedDownload(DownloadState progress) {
     float width = ImGui.GetContentRegionAvail().X;
-    ImGui.BeginChild("download" + progress.Filename, new Vector2(width, 100), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
+    ImGui.BeginChild("download" + Path.GetFileName(progress.outputPath), new Vector2(width, 100), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
+    ImGui.Text($"Filename: {Path.GetFileName(progress.outputPath)}");
+    ImGui.Text($"Mod name: {progress.modName}");
+    ImGui.Text($"Mod size: {new Humanizer.Bytes.ByteSize(progress.totalBytes).Humanize()}");
+    ImGui.EndChild();
+    /*ImGui.BeginChild("download" + progress.Filename, new Vector2(width, 100), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
     ImGui.Text($"Filename: {progress.Filename}");
     if (progress.Modname == "ExtractFailed")
       ImGui.Text("Mod extraction failed.");
     else
       ImGui.Text($"Mod name: {progress.Modname}");
     ImGui.Text($"Mod size: {new Humanizer.Bytes.ByteSize(progress.Size).Humanize()}");
-    ImGui.EndChild();
+    ImGui.EndChild();*/
   }
 
   private static int draggedIndex = -1;
@@ -379,7 +384,7 @@ partial class EntryPoint
     mods = [.. mods.OrderByDescending((v) => manager.modManager.favourites.Contains(v.Guid))];
     if (SearchingString != "" && SearchingString != string.Empty)
     {
-      mods = mods
+      mods = [.. mods
       .Where(mod => manager.modManager.modAliases[mod.Guid].Contains(SearchingString, StringComparison.OrdinalIgnoreCase))
       .Select(static mod => new
       {
@@ -390,7 +395,7 @@ partial class EntryPoint
       })
       .OrderByDescending(x => x.IsPrefix ? 2 : (x.Contains ? 1 : 0))
       .ThenByDescending(x => x.Score)
-      .ThenBy(mod => manager.modManager.modAliases[mod.Mod.Guid].Length).OrderByDescending((v) => manager.modManager.favourites.Contains(v.Mod.Guid)).Select((x) => x.Mod).ToArray();
+      .ThenBy(mod => manager.modManager.modAliases[mod.Mod.Guid].Length).OrderByDescending((v) => manager.modManager.favourites.Contains(v.Mod.Guid)).Select((x) => x.Mod)];
     }
     foreach (ArsenalMod mod in mods)
     {
@@ -402,7 +407,7 @@ partial class EntryPoint
   private static void DoDownloads()
   {
     ImGui.BeginChild("ScrollableDownloads", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders, ImGuiWindowFlags.AlwaysVerticalScrollbar);
-    foreach (DownloadProgress progress in manager.progresses.Values.ToList())
+    foreach (KeyValuePair<string, DownloadState> progress in manager.downloadManager.progresses.ToList().Where((v) => v.Value.status != DownloadStatus.Done))
     {
       DoDownload(progress);
     }
@@ -547,13 +552,36 @@ partial class EntryPoint
     }
   }
 
-  private static void DoDownload(DownloadProgress progress)
+  private static void DoDownload(KeyValuePair<string, DownloadState> progress)
   {
     float width = ImGui.GetContentRegionAvail().X;
-    ImGui.BeginChild("download" + progress.modName, new Vector2(width, 80), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
+    ImGui.BeginChild("download" + progress.Value.modName, new Vector2(width, 80), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
+    ImGui.Text(progress.Value.modName);
+    ImGui.ProgressBar(progress.Value.bytesRead / progress.Value.totalBytes, Vector2.Zero, $"{new Humanizer.Bytes.ByteSize(progress.Value.bytesRead).Humanize()}/{new Humanizer.Bytes.ByteSize(progress.Value.totalBytes).Humanize()}");
+    if (progress.Value.status == DownloadStatus.Active) {
+      if (ImGui.Button("Pause")) {
+        manager.downloadManager.progresses[progress.Key] = manager.downloadManager.progresses[progress.Key] with { status = DownloadStatus.Paused };
+      }
+      ImGui.SameLine();
+      if (ImGui.Button("Cancel")) {
+        manager.downloadManager.progresses[progress.Key] = manager.downloadManager.progresses[progress.Key] with { status = DownloadStatus.Cancelled };
+      }
+    }
+    else if (progress.Value.status == DownloadStatus.Paused) {
+      if (ImGui.Button("Resume")) {
+        manager.downloadManager.ResumeDownload(progress.Key);
+      }
+      ImGui.SameLine();
+      if (ImGui.Button("Cancel")) {
+        File.Delete(progress.Value.outputPath);
+        manager.downloadManager.progresses.Remove(progress.Key, out _);
+      }
+    }
+    ImGui.EndChild();
+    /*ImGui.BeginChild("download" + progress.modName, new Vector2(width, 80), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
     ImGui.Text(progress.modName);
     ImGui.ProgressBar(progress.BytesDownloaded / progress.TotalBytes, Vector2.Zero, $"{new Humanizer.Bytes.ByteSize(progress.BytesDownloaded).Humanize()}/{new Humanizer.Bytes.ByteSize(progress.TotalBytes).Humanize()}");
-    ImGui.EndChild();
+    ImGui.EndChild();*/
   }
 
   private static string modRenamed = string.Empty;
@@ -744,11 +772,11 @@ partial class EntryPoint
       {
         if (enabled)
         {
-          manager.modManager.EnableChoice(mod.Guid, choice.Name);
+          manager.modManager.EnableChoice(mod.Guid, choice.Name!);
         }
         else
         {
-          manager.modManager.DisableChoice(mod.Guid, choice.Name);
+          manager.modManager.DisableChoice(mod.Guid, choice.Name!);
         }
       }
       ImGui.EndGroup();
@@ -756,7 +784,7 @@ partial class EntryPoint
         ImGui.Indent();
         ImGui.Text("Sub Options");
         ImGui.Indent();
-        DrawSubChoices(choice.SubChoices, mod.Guid, mod.FolderName, choice.Name);
+        DrawSubChoices(choice.SubChoices, mod.Guid, mod.FolderName, choice.Name!);
         ImGui.Unindent();
         ImGui.Unindent();
       }

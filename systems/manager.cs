@@ -19,8 +19,6 @@ class Manager {
   internal DownloadManager downloadManager;
   internal ModManager modManager;
   internal ModpackManager modpackManager;
-  internal Dictionary<string, DownloadProgress> progresses = [];
-  internal Dictionary<string, FinishedDownload> completed = [];
   public Manager() {
     downloadManager = new();
     modManager = new();
@@ -121,8 +119,7 @@ class Manager {
 
   private void DownloadFile(string nxm_url) {
     Console.WriteLine($"Downloading {nxm_url}");
-    Progress<DownloadProgress> progress = new((v) => progresses[v.modName] = v);
-    downloadManager.StartDownload(nxm_url, DownloadHolder, progress);
+    downloadManager.StartDownload(nxm_url, DownloadHolder);
     EntryPoint.SwitchToDownloads = true;
     void d(object? sender, (string, string, string) output)
     {
@@ -208,15 +205,6 @@ class Manager {
       }
       finally
       {
-        DownloadProgress p = progresses[output.Item1];
-        FinishedDownload d = new()
-        {
-          Filename = output.Item1,
-          Modname = ModName,
-          Size = p.TotalBytes
-        };
-        completed[output.Item1] = d;
-        progresses.Remove(output.Item1);
         EntryPoint.queue.Delete(output.Item3);
       }
     }
