@@ -52,21 +52,23 @@ struct DownloadState {
   public string downloadURL;
   public string outputPath;
   public string modName;
+  public string version;
+  public string mainModName;
 }
 
 class DownloadManager {
   internal ConcurrentDictionary<string, DownloadState> progresses = [];
   readonly HttpClient client;
 
-  public EventHandler<(string, string, string)> DownloadFinished = (_, __) => {};
+  public EventHandler<(string, string, string, string)> DownloadFinished = (_, __) => {};
 
   public DownloadManager() {
     client = new();
-    client.DefaultRequestHeaders.Add("User-Agent", "yahd2mm/0.3.7 .NET/9.0");
+    client.DefaultRequestHeaders.Add("User-Agent", "yahd2mm/0.3.8 .NET/9.0");
     client.DefaultRequestHeaders.Add("apikey", EntryPoint.APIKey);
   }
 
-  private static ProcessedLink ProcessLink(string url) {
+  internal static ProcessedLink ProcessLink(string url) {
     string firstReplaced = url.Replace("nxm://helldivers2/mods/", "");
     string[] split1 = firstReplaced.Split('?');
     string[] baseurl = [.. split1[0].Split("/").Where((v) => v != "files")];
@@ -119,7 +121,6 @@ class DownloadManager {
     return response!.First();
   }
 
-  // unused for now, will be used once i implement mod grouping so multi-part downloads work well enough to be acceptable
   private async Task<ModInfoAPIResponse> GetModInfo(string url) {
     ProcessedLink link = ProcessLink(url);
     string id = link.modId;
@@ -200,7 +201,7 @@ class DownloadManager {
         fileStream.Flush();
         fileStream.Dispose();
         Console.WriteLine("download finished");
-        DownloadFinished.Invoke(null, (Path.GetFileName(state.outputPath), url, fullPath));
+        DownloadFinished.Invoke(null, (Path.GetFileName(state.outputPath), url, fullPath, state.version));
       }
     });
     ConcurrentDownload download = new()
@@ -216,6 +217,7 @@ class DownloadManager {
       using HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
       response.EnsureSuccessStatusCode();
       ModFileAPIResponse modInfo = await GetModFile(originalURL);
+      ModInfoAPIResponse mainModInfo = await GetModInfo(originalURL);
       string filename = Uri.UnescapeDataString(GetFileNameFromUrl(url) ?? "downloaded_mod.zip");
       filename = (modInfo.name + Path.GetExtension(filename)) ?? filename;
       string fullPath = Path.Join(output, filename);
@@ -237,7 +239,9 @@ class DownloadManager {
         downloadURL = url,
         outputPath = fullPath,
         modName = modInfo.name,
-        status = DownloadStatus.Active
+        status = DownloadStatus.Active,
+        version = modInfo.version,
+        mainModName = mainModInfo.name
       };
       int bytesRead;
       while (true)
@@ -268,7 +272,7 @@ class DownloadManager {
         fileStream.Flush();
         fileStream.Dispose();
         Console.WriteLine("download finished");
-        DownloadFinished.Invoke(null, (filename, originalURL, fullPath));
+        DownloadFinished.Invoke(null, (filename, originalURL, fullPath, modInfo.version));
         progresses[originalURL] = progresses[originalURL] with { status = DownloadStatus.Done };
       }
     });

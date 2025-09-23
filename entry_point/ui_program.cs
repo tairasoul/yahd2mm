@@ -14,6 +14,13 @@ using SixLabors.ImageSharp.PixelFormats;
 
 namespace yahd2mm;
 
+struct ArsenalModGroup {
+  public bool IsGrouped;
+  public ArsenalMod[] mods;
+  public string GroupName;
+  public string ModId;
+}
+
 partial class EntryPoint
 {
   private static bool NeedsKey = !File.Exists(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "key.txt"));
@@ -400,9 +407,83 @@ partial class EntryPoint
       .ThenByDescending(x => x.Score)
       .ThenBy(mod => manager.modManager.modAliases[mod.Mod.Guid].Length).OrderByDescending((v) => manager.modManager.favourites.Contains(v.Mod.Guid)).Select((x) => x.Mod)];
     }
-    foreach (ArsenalMod mod in mods)
-    {
-      DoMod(mod);
+    ArsenalModGroup[] grouped = [];
+    List<string> encountered = [];
+    foreach (ArsenalMod mod in mods) {
+      if (encountered.Contains(mod.Guid)) continue;
+      if (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data)) {
+        int groupCount = manager.nexusIds.Where((v) => v.Value.id == data.id).Count();
+        if (groupCount > 1) {
+          ArsenalModGroup group = new()
+          {
+            GroupName = data.mainMod,
+            IsGrouped = true,
+            mods = [.. mods.Where((v) => manager.nexusIds.TryGetValue(v.Guid, out NexusData d) && d.id == data.id)],
+            ModId = data.id
+          };
+          encountered.AddRange(group.mods.Select((v) => v.Guid));
+          grouped = [.. grouped, group];
+        }
+        else {
+          ArsenalModGroup group = new()
+          {
+            IsGrouped = false,
+            mods = [mod]
+          };
+          encountered.Add(mod.Guid);
+          grouped = [.. grouped, group];
+        }
+      }
+      else {
+        int lastNonGrouped = Array.IndexOf(grouped, Array.FindLast(grouped, (group) => !group.IsGrouped));
+        if (lastNonGrouped == -1) {
+          grouped = [new ArsenalModGroup() {
+            mods = [mod],
+            IsGrouped = false
+          }];
+        }
+        else
+        {
+          if (lastNonGrouped == grouped.Length - 1) {
+            grouped[lastNonGrouped] = grouped[lastNonGrouped] with { mods = [.. grouped[lastNonGrouped].mods, mod] };
+            encountered.Add(mod.Guid);
+          }
+          else
+          {
+            grouped = [..grouped, new ArsenalModGroup() {
+              mods = [mod],
+              IsGrouped = false
+            }];
+          }
+        }
+      }
+    }
+    foreach (ArsenalModGroup group in grouped) {
+      if (group.IsGrouped) {
+        if (ImGui.CollapsingHeader($"{group.GroupName}###{group.ModId}")) {
+          ImGui.Indent();
+          if (ImGui.Button("Open mod on Nexus"))
+          {
+            if (OperatingSystem.IsLinux())
+            {
+              System.Diagnostics.Process.Start("xdg-open", $"\"https://www.nexusmods.com/helldivers2/mods/{group.ModId}\"");
+            }
+            else
+            {
+              System.Diagnostics.Process.Start("explorer.exe", $"\"https://www.nexusmods.com/helldivers2/mods/{group.ModId}\"");
+            }
+          }
+          foreach (ArsenalMod mod in group.mods) {
+            DoMod(mod, false);
+          }
+          ImGui.Unindent();
+        }
+      }
+      else {
+        foreach (ArsenalMod mod in group.mods) {
+          DoMod(mod, true);
+        }
+      }
     }
     ImGui.EndChild();
   }
@@ -616,7 +697,7 @@ partial class EntryPoint
   private static readonly Dictionary<string, IntPtr> Textures = [];
   private static readonly Dictionary<string, Vector2> TextureDimensions = [];
 
-  private static void DoMod(ArsenalMod mod) {
+  private static void DoMod(ArsenalMod mod, bool doNexusButton) {
     bool ienabled = manager.modManager.modState[mod.Guid].Enabled;
     bool favourited = manager.modManager.favourites.Contains(mod.Guid);
     /*if (ienabled) {
@@ -710,13 +791,33 @@ partial class EntryPoint
       }
       if (ImGui.Button("Uninstall")) {
         manager.modManager.UninstallMod(mod.Guid);
+        manager.nexusIds.Remove(mod.Guid);
+        manager.SaveData();
       }
       ImGui.EndGroup();
+      ImGui.SameLine();
+      ImGui.Spacing();
+      ImGui.SameLine();
+      ImGui.BeginGroup();
+      if (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data)) {
+        ImGui.Text($"Mod version: {manager.modManager.modState[mod.Guid].Version}");
+        if (doNexusButton)
+        {
+          ImGui.SameLine();
+          if (ImGui.Button("Open mod on Nexus"))
+          {
+            if (OperatingSystem.IsLinux())
+            {
+              System.Diagnostics.Process.Start("xdg-open", $"\"https://www.nexusmods.com/helldivers2/mods/{data.id}\"");
+            }
+            else
+            {
+              System.Diagnostics.Process.Start("explorer.exe", $"\"https://www.nexusmods.com/helldivers2/mods/{data.id}\"");
+            }
+          }
+        }
+      } 
       if (mod.Manifest.HasValue) {
-        ImGui.SameLine();
-        ImGui.Spacing();
-        ImGui.SameLine();
-        ImGui.BeginGroup();
         if (mod.Manifest.Value.Description != null) {
           ImGui.Text(mod.Manifest.Value.Description);
         }
@@ -725,8 +826,8 @@ partial class EntryPoint
           {
             DrawChoices(mod);
           }
-        ImGui.EndGroup();
       }
+      ImGui.EndGroup();
       ImGui.PopID();
       ImGui.PopID();
       ImGui.Unindent();

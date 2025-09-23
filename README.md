@@ -14,7 +14,7 @@ uses ImGui.NET and Veldrid.SDL2 for rendering (the `Shaders` and `veldrid` direc
 
 will always prompt for nexus api key regardless of if you plan to use nxm integration
 
-uses symlinks on linux, hardlinks files on windows (symlinks need admin permissions and might be buggy i think)
+uses symlinks on linux, hardlinks files on windows (will use symlinks if data directory is not on C: drive, prompts for admin if needed)
 
 should work with most archive types, if one doesn't work extract it manually and put the resulting folder into the local files folder (make a folder for the mod if it's single-file)
 
@@ -22,7 +22,10 @@ setting this as your nxm handler will let you use this to download mods off nexu
 
 you do not need to have this open in the background for this, it'll open the manager automatically when it receives one without a running instance
 
-multi-part download mods do not work currently (and i'm unsure how to make them work), if need be download parts manually and put the archives in the local files directory
+multi-part download mods now work, although i cannot offer as much assistance as with regular mods
+  - optional files are not guaranteed to always have the same name, as are main files
+
+in exchange for being able to do ^, you'll have to manage the mods a bit more manually and uninstall old versions of a mod if the file name changes
 
 ## tabs
 
@@ -49,6 +52,10 @@ hovering over a mod with an icon will show that icon as large as it can while pr
 same goes for hovering over the icon itself when expanded
 
 previous two apply to options and sub options too
+
+if two or more files from the same mod are downloaded, they'll be under a header with the mod name instead of two or more headers with the mod file names
+
+downloading mod file A and B from mod C will cause there to be a header C with two headers A and B in it, as opposed to two loose headers A and B
 
 ### Priorities
 
@@ -89,9 +96,5 @@ put any compressed archives in here and you can install them directly
 also works with already-extracted mod folders, will move them instead (because c# doesnt let you do Directory.Copy for some godforsaken reason)
 
 ## todo
-
-more nexus integration (properly get mod version from nexus, show author, open mod on nexus)
-
-custom groups in mod list
 
 properly deploy with priorities when enabling/disabling in mod list

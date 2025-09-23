@@ -1,19 +1,21 @@
 using System.IO.Pipes;
 using System.Text;
 using Aspose.Zip.SevenZip;
+using Newtonsoft.Json;
 using SharpCompress.Common;
 using SharpCompress.Readers;
 
 namespace yahd2mm;
 
-struct FinishedDownload {
-  public long Size;
-  public string Filename;
-  public string Modname;
+struct NexusData {
+  public string id;
+  public string mainMod;
 }
 
 class Manager {
   static readonly string DownloadHolder = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "downloads");
+  static readonly string NexusIds = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "nexus-ids.json");
+  internal Dictionary<string, NexusData> nexusIds = File.Exists(NexusIds) ? JsonConvert.DeserializeObject<Dictionary<string, NexusData>>(File.ReadAllText(NexusIds).Trim()) ?? [] : [];
   internal EventHandler<DownloadProgress> FileDownloadProgress = (_, __) => {};
   internal EventHandler<(string, string, string)> FileDownloaded = (_, __) => {};
   internal DownloadManager downloadManager;
@@ -32,6 +34,10 @@ class Manager {
     foreach (string dir in Directory.EnumerateDirectories(DownloadHolder)) {
       Directory.Delete(dir, true);
     }
+  }
+
+  internal void SaveData() {
+    File.WriteAllText(NexusIds, JsonConvert.SerializeObject(nexusIds));
   }
 
   internal void InstallFile(string file) {
@@ -121,9 +127,10 @@ class Manager {
     Console.WriteLine($"Downloading {nxm_url}");
     downloadManager.StartDownload(nxm_url, DownloadHolder);
     EntryPoint.SwitchToDownloads = true;
-    void d(object? sender, (string, string, string) output)
+    void d(object? sender, (string, string, string, string) output)
     {
       if (output.Item2 != nxm_url) return;
+      ProcessedLink l = DownloadManager.ProcessLink(output.Item2);
       downloadManager.DownloadFinished -= d;
       string ModName = "ExtractFailed";
       try
@@ -155,6 +162,13 @@ class Manager {
           ModName = m.Name;
           guid = m.Guid;
         }
+        modManager.modState[guid] = modManager.modState[guid] with { Version = output.Item4 };
+        nexusIds[guid] = new() {
+          id = l.modId,
+          mainMod = downloadManager.progresses[output.Item2].mainModName
+        };
+        modManager.SaveData();
+        SaveData();
         ArsenalMod[] mods = [ .. modManager.mods ];
         Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
         modManager.mods = [.. mods];
@@ -191,6 +205,13 @@ class Manager {
             ModName = m.Name;
             guid = m.Guid;
           }
+          modManager.modState[guid] = modManager.modState[guid] with { Version = output.Item4 };
+          nexusIds[guid] = new() {
+            id = l.modId,
+            mainMod = downloadManager.progresses[output.Item2].mainModName
+          };
+          modManager.SaveData();
+          SaveData();
           ArsenalMod[] mods = [.. modManager.mods];
           Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
           modManager.mods = [.. mods];
