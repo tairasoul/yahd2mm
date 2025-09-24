@@ -181,10 +181,10 @@ class DownloadManager {
           fileStream.Dispose();
           File.Delete(fullPath);
           progresses.Remove(url, out _);
-          cancelled = true;
           break;
         }
-        if ((bytesRead = await contentStream.ReadAsync(buffer)) <= 0) {
+        bytesRead = await contentStream.ReadAsync(buffer);
+        if (bytesRead <= 0) {
           progresses[url] = progresses[url] with { status = DownloadStatus.Done };
           break;
         }
@@ -199,7 +199,6 @@ class DownloadManager {
       if (progresses[url].status == DownloadStatus.Done)
       {
         fileStream.Flush();
-        fileStream.Dispose();
         Console.WriteLine("download finished");
         DownloadFinished.Invoke(null, (Path.GetFileName(state.outputPath), url, fullPath, state.version));
       }
@@ -256,7 +255,8 @@ class DownloadManager {
           progresses.Remove(url, out _);
           break;
         }
-        if ((bytesRead = await contentStream.ReadAsync(buffer)) <= 0) {
+        bytesRead = await contentStream.ReadAsync(buffer);
+        if (bytesRead <= 0) {
           progresses[originalURL] = progresses[originalURL] with { status = DownloadStatus.Done };
           break;
         }
@@ -270,7 +270,6 @@ class DownloadManager {
       if (progresses[originalURL].status == DownloadStatus.Done)
       {
         fileStream.Flush();
-        fileStream.Dispose();
         Console.WriteLine("download finished");
         DownloadFinished.Invoke(null, (filename, originalURL, fullPath, modInfo.version));
         progresses[originalURL] = progresses[originalURL] with { status = DownloadStatus.Done };
