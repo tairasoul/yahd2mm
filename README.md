@@ -98,3 +98,14 @@ also works with already-extracted mod folders, will move them instead (because c
 ## todo
 
 properly deploy with priorities when enabling/disabling in mod list
+
+## things missing
+
+checking for nexus mod updates
+  - isn't feasible with how most mods are setup, versions can be entirely different from what a SemVer-based updater would expect
+  
+  - file names aren't guaranteed to be consistent, some mods may have an old main file alongside a new main file
+
+  - optional files may just entirely change name for what's supposed to be the same file
+
+  - in general would require a standard only something like arsenal or hd2mm can enforce
