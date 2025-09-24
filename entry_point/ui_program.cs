@@ -794,11 +794,13 @@ partial class EntryPoint
       if (manager.modManager.favourites.Contains(mod.Guid)) {
         if (ImGui.Button("Unfavourite")) {
           manager.modManager.favourites.Remove(mod.Guid);
+          manager.modManager.SaveData();
         }
       }
       else {
         if (ImGui.Button("Favourite")) {
           manager.modManager.favourites.Add(mod.Guid);
+          manager.modManager.SaveData();
         }
       }
       if (ImGui.Button("Uninstall")) {
@@ -813,8 +815,16 @@ partial class EntryPoint
       ImGui.BeginGroup();
       if (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data)) {
         ImGui.Text($"Mod version: {manager.modManager.modState[mod.Guid].Version}");
+        if (manager.modManager.modState[mod.Guid].InstalledAt != 0L) {
+          ImGui.SameLine();
+          ImGui.Spacing();
+          ImGui.SameLine();
+          ImGui.Text($"Installed on {DateTimeOffset.FromUnixTimeMilliseconds(manager.modManager.modState[mod.Guid].InstalledAt):MMMM d, yyyy} at {DateTimeOffset.FromUnixTimeMilliseconds(manager.modManager.modState[mod.Guid].InstalledAt):h:mm:ss tt}");
+        }
         if (doNexusButton)
         {
+          ImGui.SameLine();
+          ImGui.Spacing();
           ImGui.SameLine();
           if (ImGui.Button("Open mod on Nexus"))
           {

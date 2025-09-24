@@ -9,6 +9,7 @@ struct ModJson
 {
   public bool Enabled;
   public string Version;
+  public long InstalledAt;
 }
 
 struct FileAssociation

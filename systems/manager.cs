@@ -70,7 +70,6 @@ class Manager {
         Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
         Directory.Delete(outputDir);
         ArsenalMod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
-
         guid = m.Guid;
       }
       else
@@ -78,6 +77,7 @@ class Manager {
         ArsenalMod m = modManager.ProcessMod(outputDir);
         guid = m.Guid;
       }
+      modManager.modState[guid] = modManager.modState[guid] with { InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
       ArsenalMod[] mods = [ .. modManager.mods ];
       Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
       modManager.mods = [.. mods];
@@ -111,6 +111,7 @@ class Manager {
         ArsenalMod m = modManager.ProcessMod(outputDir);
         guid = m.Guid;
       }
+      modManager.modState[guid] = modManager.modState[guid] with { InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
       ArsenalMod[] mods = [ .. modManager.mods ];
       Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
       modManager.mods = [.. mods];
@@ -162,7 +163,7 @@ class Manager {
           ModName = m.Name;
           guid = m.Guid;
         }
-        modManager.modState[guid] = modManager.modState[guid] with { Version = output.Item4 };
+        modManager.modState[guid] = modManager.modState[guid] with { Version = output.Item4, InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
         nexusIds[guid] = new() {
           id = l.modId,
           mainMod = downloadManager.progresses[output.Item2].mainModName
@@ -205,7 +206,7 @@ class Manager {
             ModName = m.Name;
             guid = m.Guid;
           }
-          modManager.modState[guid] = modManager.modState[guid] with { Version = output.Item4 };
+          modManager.modState[guid] = modManager.modState[guid] with { Version = output.Item4, InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
           nexusIds[guid] = new() {
             id = l.modId,
             mainMod = downloadManager.progresses[output.Item2].mainModName
