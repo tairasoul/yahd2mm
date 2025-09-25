@@ -819,7 +819,7 @@ partial class EntryPoint
           ImGui.SameLine();
           ImGui.Spacing();
           ImGui.SameLine();
-          ImGui.Text($"Installed on {DateTimeOffset.FromUnixTimeMilliseconds(manager.modManager.modState[mod.Guid].InstalledAt):MMMM d, yyyy} at {DateTimeOffset.FromUnixTimeMilliseconds(manager.modManager.modState[mod.Guid].InstalledAt):h:mm:ss tt}");
+          ImGui.Text($"Installed on {DateTimeOffset.FromUnixTimeMilliseconds(manager.modManager.modState[mod.Guid].InstalledAt):MMMM d, yyyy}");
         }
         if (doNexusButton)
         {
