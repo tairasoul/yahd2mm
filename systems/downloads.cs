@@ -170,7 +170,7 @@ class DownloadManager {
       };
       int bytesRead;
       resuming.Remove(url);
-      bool cancelled = false;
+      bool finished = false;
       while (true)
       {
         if (progresses[url].status == DownloadStatus.Paused) {
@@ -185,7 +185,7 @@ class DownloadManager {
         }
         bytesRead = await contentStream.ReadAsync(buffer);
         if (bytesRead <= 0) {
-          progresses[url] = progresses[url] with { status = DownloadStatus.Done };
+          finished = true;
           break;
         }
         await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
@@ -195,11 +195,12 @@ class DownloadManager {
           bytesRead = totalBytesRead
         };
       }
-      if (cancelled) return;
-      if (progresses[url].status == DownloadStatus.Done)
+      if (finished)
       {
         fileStream.Flush();
+        fileStream.Dispose();
         Console.WriteLine("download finished");
+        progresses[url] = progresses[url] with { status = DownloadStatus.Done };
         DownloadFinished.Invoke(null, (Path.GetFileName(state.outputPath), url, fullPath, state.version));
       }
     });
@@ -243,6 +244,7 @@ class DownloadManager {
         mainModName = mainModInfo.name
       };
       int bytesRead;
+      bool finished = false;
       while (true)
       {
         if (progresses[originalURL].status == DownloadStatus.Paused) {
@@ -257,7 +259,7 @@ class DownloadManager {
         }
         bytesRead = await contentStream.ReadAsync(buffer);
         if (bytesRead <= 0) {
-          progresses[originalURL] = progresses[originalURL] with { status = DownloadStatus.Done };
+          finished = true;;
           break;
         }
         await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
@@ -267,12 +269,13 @@ class DownloadManager {
           bytesRead = totalBytesRead
         };
       }
-      if (progresses[originalURL].status == DownloadStatus.Done)
+      if (finished)
       {
         fileStream.Flush();
+        fileStream.Dispose();
         Console.WriteLine("download finished");
-        DownloadFinished.Invoke(null, (filename, originalURL, fullPath, modInfo.version));
         progresses[originalURL] = progresses[originalURL] with { status = DownloadStatus.Done };
+        DownloadFinished.Invoke(null, (filename, originalURL, fullPath, modInfo.version));
       }
     });
     ConcurrentDownload download = new()
