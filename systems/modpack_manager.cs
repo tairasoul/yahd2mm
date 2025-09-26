@@ -14,7 +14,7 @@ struct ModpackMod {
 }
 
 class ModpackManager {
-  internal static readonly string Modpacks = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "modpacks.json");
+  internal static readonly string Modpacks = Path.Join(ModManager.yahd2mm_basepath, "modpacks.json");
   internal Dictionary<string, Modpack> modpacks = File.Exists(Modpacks) ? JsonConvert.DeserializeObject<Dictionary<string, Modpack>>(File.ReadAllText(Modpacks)) ?? [] : [];
   public void SaveData() {
     File.WriteAllText(Modpacks, JsonConvert.SerializeObject(modpacks));

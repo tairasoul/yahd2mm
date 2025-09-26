@@ -13,8 +13,8 @@ struct NexusData {
 }
 
 class Manager {
-  static readonly string DownloadHolder = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "downloads");
-  static readonly string NexusIds = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "nexus-ids.json");
+  static readonly string DownloadHolder = Path.Join(ModManager.yahd2mm_basepath, "downloads");
+  static readonly string NexusIds = Path.Join(ModManager.yahd2mm_basepath, "nexus-ids.json");
   internal Dictionary<string, NexusData> nexusIds = File.Exists(NexusIds) ? JsonConvert.DeserializeObject<Dictionary<string, NexusData>>(File.ReadAllText(NexusIds).Trim()) ?? [] : [];
   internal EventHandler<DownloadProgress> FileDownloadProgress = (_, __) => {};
   internal EventHandler<(string, string, string)> FileDownloaded = (_, __) => {};
@@ -22,17 +22,11 @@ class Manager {
   internal ModManager modManager;
   internal ModpackManager modpackManager;
   public Manager() {
-    downloadManager = new();
+    downloadManager = new(this);
     modManager = new();
     modpackManager = new();
     if (!Directory.Exists(DownloadHolder)) {
       Directory.CreateDirectory(DownloadHolder);
-    }
-    foreach (string file in Directory.EnumerateFiles(DownloadHolder)) {
-      File.Delete(file);
-    }
-    foreach (string dir in Directory.EnumerateDirectories(DownloadHolder)) {
-      Directory.Delete(dir, true);
     }
   }
 
@@ -85,7 +79,7 @@ class Manager {
         modManager.EnableMod(guid);
       }
       if (Config.cfg.ActivateOptionsOnInstall) {
-        modManager.ActivateAllOptions(guid);
+        modManager.ActivateAllOptionsAndSubOptions(guid);
       }
     }
     catch (InvalidFormatException) {
@@ -119,7 +113,7 @@ class Manager {
         modManager.EnableMod(guid);
       }
       if (Config.cfg.ActivateOptionsOnInstall) {
-        modManager.ActivateAllOptions(guid);
+        modManager.ActivateAllOptionsAndSubOptions(guid);
       }
     }
   }
@@ -177,53 +171,49 @@ class Manager {
           modManager.EnableMod(guid);
         }
         if (Config.cfg.ActivateOptionsOnInstall) {
-          modManager.ActivateAllOptions(guid);
+          modManager.ActivateAllOptionsAndSubOptions(guid);
         }
       }
       catch (InvalidFormatException) {
-        try
+        using Stream stream = File.OpenRead(output.Item3);
+        using SevenZipArchive archive = new(stream);
+        string outputDir = Path.Join(ModManager.ModHolder, Path.GetFileNameWithoutExtension(output.Item1));
+        if (Directory.Exists(outputDir))
+          Directory.Delete(outputDir, true);
+        Directory.CreateDirectory(outputDir);
+        archive.ExtractToDirectory(outputDir);
+        string[] files = [.. Directory.EnumerateFiles(outputDir), .. Directory.EnumerateDirectories(outputDir)];
+        string guid;
+        if (files.Length == 1 && Directory.Exists(files[0]))
         {
-          using Stream stream = File.OpenRead(output.Item3);
-          using SevenZipArchive archive = new(stream);
-          string outputDir = Path.Join(ModManager.ModHolder, Path.GetFileNameWithoutExtension(output.Item1));
-          if (Directory.Exists(outputDir))
-            Directory.Delete(outputDir, true);
-          Directory.CreateDirectory(outputDir);
-          archive.ExtractToDirectory(outputDir);
-          string[] files = [.. Directory.EnumerateFiles(outputDir), .. Directory.EnumerateDirectories(outputDir)];
-          string guid;
-          if (files.Length == 1 && Directory.Exists(files[0]))
-          {
-            Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
-            Directory.Delete(outputDir);
-            ArsenalMod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
-            ModName = m.Name;
-            guid = m.Guid;
-          }
-          else
-          {
-            ArsenalMod m = modManager.ProcessMod(outputDir);
-            ModName = m.Name;
-            guid = m.Guid;
-          }
-          modManager.modState[guid] = modManager.modState[guid] with { Version = output.Item4, InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
-          nexusIds[guid] = new() {
-            id = l.modId,
-            mainMod = downloadManager.progresses[output.Item2].mainModName
-          };
-          modManager.SaveData();
-          SaveData();
-          ArsenalMod[] mods = [.. modManager.mods];
-          Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
-          modManager.mods = [.. mods];
-          if (Config.cfg.ActivateOnInstall) {
-            modManager.EnableMod(guid);
-          }
-          if (Config.cfg.ActivateOptionsOnInstall) {
-            modManager.ActivateAllOptions(guid);
-          }
+          Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          Directory.Delete(outputDir);
+          ArsenalMod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          ModName = m.Name;
+          guid = m.Guid;
         }
-        catch (Exception) { }
+        else
+        {
+          ArsenalMod m = modManager.ProcessMod(outputDir);
+          ModName = m.Name;
+          guid = m.Guid;
+        }
+        modManager.modState[guid] = modManager.modState[guid] with { Version = output.Item4, InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
+        nexusIds[guid] = new() {
+          id = l.modId,
+          mainMod = downloadManager.progresses[output.Item2].mainModName
+        };
+        modManager.SaveData();
+        SaveData();
+        ArsenalMod[] mods = [.. modManager.mods];
+        Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
+        modManager.mods = [.. mods];
+        if (Config.cfg.ActivateOnInstall) {
+          modManager.EnableMod(guid);
+        }
+        if (Config.cfg.ActivateOptionsOnInstall) {
+          modManager.ActivateAllOptionsAndSubOptions(guid);
+        }
       }
       finally
       {

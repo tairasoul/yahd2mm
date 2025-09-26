@@ -49,13 +49,14 @@ partial class ModManager
 {
   internal List<ArsenalMod> mods = [];
   internal EventHandler<ArsenalMod> modAdded = static (_, __) => { };
-  internal static readonly string ModHolder = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "mods");
-  static readonly string Record = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "record.json");
-  static readonly string State = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "state.json");
-  static readonly string Choices = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "choices.json");
-  static readonly string Aliases = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "aliases.json");
-  static readonly string Favourites = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "favourites.json");
-  static readonly string PriorityList = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "priority-list.json");
+  internal static readonly string yahd2mm_basepath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm");
+  internal static readonly string ModHolder = Path.Join(yahd2mm_basepath, "mods");
+  static readonly string Record = Path.Join(yahd2mm_basepath, "record.json");
+  static readonly string State = Path.Join(yahd2mm_basepath, "state.json");
+  static readonly string Choices = Path.Join(yahd2mm_basepath, "choices.json");
+  static readonly string Aliases = Path.Join(yahd2mm_basepath, "aliases.json");
+  static readonly string Favourites = Path.Join(yahd2mm_basepath, "favourites.json");
+  static readonly string PriorityList = Path.Join(yahd2mm_basepath, "priority-list.json");
   internal Dictionary<string, ModJson> modState = File.Exists(State) ? JsonConvert.DeserializeObject<Dictionary<string, ModJson>>(File.ReadAllText(State)) ?? [] : [];
   readonly Dictionary<string, FileAssociation[]> fileRecords = File.Exists(Record) ? JsonConvert.DeserializeObject<Dictionary<string, FileAssociation[]>>(File.ReadAllText(Record)) ?? [] : [];
   internal readonly Dictionary<string, string[]> modChoices = File.Exists(Choices) ? JsonConvert.DeserializeObject<Dictionary<string, string[]>>(File.ReadAllText(Choices)) ?? [] : [];
@@ -134,6 +135,56 @@ partial class ModManager
     foreach (ManifestChoices choice in choices)
     {
       choice.Chosen = true;
+    }
+    if (reactivate)
+    {
+      EnableMod(mod);
+    }
+
+    SaveData();
+  }
+
+  public void DisableAllOptions(string mod)
+  {
+    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices))
+    {
+      return;
+    }
+
+    bool reactivate = modState[mod].Enabled;
+    if (reactivate)
+    {
+      DisableMod(mod);
+    }
+
+    foreach (ManifestChoices choice in choices)
+    {
+      choice.Chosen = false;
+    }
+    if (reactivate)
+    {
+      EnableMod(mod);
+    }
+
+    SaveData();
+  }
+
+  public void ActivateAllOptionsAndSubOptions(string mod)
+  {
+    if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices))
+    {
+      return;
+    }
+
+    bool reactivate = modState[mod].Enabled;
+    if (reactivate)
+    {
+      DisableMod(mod);
+    }
+
+    foreach (ManifestChoices choice in choices)
+    {
+      choice.Chosen = true;
       foreach (ManifestChoices c in choice.SubChoices ?? [])
       {
         c.Chosen = true;
@@ -147,7 +198,7 @@ partial class ModManager
     SaveData();
   }
 
-  public void DisableAllOptions(string mod)
+  public void DisableAllOptionsAndSubOptions(string mod)
   {
     if (!processedChoices.TryGetValue(mod, out ManifestChoices[]? choices))
     {
@@ -1116,8 +1167,7 @@ partial class ModManager
         Enabled = false
       };
       modState[name] = state;
-    }
-    ;
+    };
     ArsenalMod mod = new()
     {
       Version = SemVersion.Parse(state.Version, SemVersionStyles.Any),
@@ -1136,7 +1186,6 @@ partial class ModManager
   private static partial Regex IsGPUResources();
   [GeneratedRegex(@"\.patch_(\d+)\.stream$")]
   private static partial Regex IsStream();
-
   [GeneratedRegex(@"^(?<base>[^\.]+)\.patch_(?<index>\d+)(?:\.(?<ext>stream|gpu_resources))?$")]
   private static partial Regex GrabPatchInfo();
 }

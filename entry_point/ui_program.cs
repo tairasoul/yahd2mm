@@ -23,8 +23,8 @@ struct ArsenalModGroup {
 
 partial class EntryPoint
 {
-  private static bool NeedsKey = !File.Exists(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "key.txt"));
-  private static bool NeedsHD2DataPath = !(File.Exists(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")) && Directory.Exists(File.ReadAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")).Trim()));
+  private static bool NeedsKey = !File.Exists(Path.Join(ModManager.yahd2mm_basepath, "key.txt"));
+  private static bool NeedsHD2DataPath = !(File.Exists(Path.Join(ModManager.yahd2mm_basepath, "path.txt")) && Directory.Exists(File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim()));
   internal static bool UseHardlinks;
   private static Sdl2Window window;
   private static GraphicsDevice gd;
@@ -32,15 +32,15 @@ partial class EntryPoint
   private static ImGuiRenderer controller;
   private static bool IsAdministrator() {
     if (OperatingSystem.IsWindows()) {
-      return Environment.IsPrivilegedProcess || Path.GetPathRoot(File.ReadAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+      return Environment.IsPrivilegedProcess || Path.GetPathRoot(File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
     }
     return true;
   }
   public static void RunMain()
   {
-    if (!Directory.Exists(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm")))
+    if (!Directory.Exists(ModManager.yahd2mm_basepath))
     {
-      Directory.CreateDirectory(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm"));
+      Directory.CreateDirectory(ModManager.yahd2mm_basepath);
     }
     Environment.CurrentDirectory = AppContext.BaseDirectory;
     Configuration.Default.PreferContiguousImageBuffers = true;
@@ -80,7 +80,7 @@ partial class EntryPoint
     if (!NeedsKey && !NeedsHD2DataPath && IsAdministrator())
     {
       StartManager();
-      UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+      UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
     }
     Stopwatch stopwatch = Stopwatch.StartNew();
     float deltaTime = 0f;
@@ -106,8 +106,8 @@ partial class EntryPoint
 
   private static void StartManager()
   {
-    APIKey = File.ReadAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "key.txt")).Trim();
-    HD2Path = File.ReadAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")).Trim();
+    APIKey = File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "key.txt")).Trim();
+    HD2Path = File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim();
     manager = new();
     manager.BeginListeningPipe();
   }
@@ -194,8 +194,6 @@ partial class EntryPoint
     ImGui.PopStyleVar(1);
   }
 
-
-
   private static void PromptForAdmin()
   {
     ImGui.SetNextWindowPos(ImGui.GetMainViewport().GetCenter(), ImGuiCond.Always, new Vector2(0.5f, 0.5f));
@@ -205,7 +203,7 @@ partial class EntryPoint
       ImGui.Text("Hardlinks do not function across drive boundaries, and as such symlinks are required.");
       ImGui.Text("Symlinks require admin permissions. yahd2mm will relaunch with admin permissions.");
       if (ImGui.Button("I understand.")) {
-        manager.server.Dispose();
+        manager?.server?.Dispose();
         ProcessStartInfo info = new()
         {
           FileName = Environment.ProcessPath,
@@ -235,7 +233,7 @@ partial class EntryPoint
       manager.downloadManager.progresses = new(manager.downloadManager.progresses.ToDictionary().Where((v) => v.Value.status != DownloadStatus.Done));
     }
     ImGui.BeginChild("ScrollableDownloads", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders, ImGuiWindowFlags.AlwaysVerticalScrollbar);
-    foreach (DownloadState progress in manager.downloadManager.progresses.ToList().Where((v) => v.Value.status == DownloadStatus.Done).Select((v) => v.Value))
+    foreach (DownloadState progress in manager.downloadManager.progresses.ToList().Where((v) => v.Value.status == DownloadStatus.Done || v.Value.status == DownloadStatus.Cancelled).Select((v) => v.Value))
     {
       DoCompletedDownload(progress);
     }
@@ -247,16 +245,9 @@ partial class EntryPoint
     ImGui.BeginChild("download" + Path.GetFileName(progress.outputPath), new Vector2(width, 100), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
     ImGui.Text($"Filename: {Path.GetFileName(progress.outputPath)}");
     ImGui.Text($"Mod name: {progress.modName}");
+    ImGui.Text($"Status: {(progress.status == DownloadStatus.Done ? "Done" : "Cancelled")}");
     ImGui.Text($"Mod size: {new Humanizer.Bytes.ByteSize(progress.totalBytes).Humanize()}");
     ImGui.EndChild();
-    /*ImGui.BeginChild("download" + progress.Filename, new Vector2(width, 100), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
-    ImGui.Text($"Filename: {progress.Filename}");
-    if (progress.Modname == "ExtractFailed")
-      ImGui.Text("Mod extraction failed.");
-    else
-      ImGui.Text($"Mod name: {progress.Modname}");
-    ImGui.Text($"Mod size: {new Humanizer.Bytes.ByteSize(progress.Size).Humanize()}");
-    ImGui.EndChild();*/
   }
 
   private static int draggedIndex = -1;
@@ -503,7 +494,7 @@ partial class EntryPoint
   private static void DoDownloads()
   {
     ImGui.BeginChild("ScrollableDownloads", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders, ImGuiWindowFlags.AlwaysVerticalScrollbar);
-    foreach (KeyValuePair<string, DownloadState> progress in manager.downloadManager.progresses.ToList().Where((v) => v.Value.status != DownloadStatus.Done))
+    foreach (KeyValuePair<string, DownloadState> progress in manager.downloadManager.progresses.ToList().Where((v) => v.Value.status != DownloadStatus.Done && v.Value.status != DownloadStatus.Cancelled))
     {
       DoDownload(progress);
     }
@@ -553,7 +544,25 @@ partial class EntryPoint
           manager.modpackManager.DeleteModpack(packs.Key);
         }
         ImGui.EndGroup();
-        if (ImGui.CollapsingHeader("Mods"))
+        ImGui.SameLine();
+        ImGui.BeginGroup();
+        if (ImGui.Button("Overwrite with active mods")) {
+          foreach (ModpackMod mod in packs.Value.mods)
+          {
+            manager.modpackManager.RemoveModFromModpack(mod.guid, packs.Key);
+          }
+          foreach (ArsenalMod amod in manager.modManager.mods.ToList())
+          {
+            if (manager.modManager.modState.TryGetValue(amod.Guid, out ModJson json))
+              if (json.Enabled)
+              {
+                bool modHasChoices = manager.modManager.processedChoices.TryGetValue(amod.Guid, out ManifestChoices[]? choices);
+                manager.modpackManager.AddModToModpack(amod.Name, amod.Guid, packs.Key, modHasChoices ? ModManager.ChoicesToPaths(choices!) : null);
+              }
+          }
+        }
+        ImGui.EndGroup();
+        if (ImGui.TreeNodeEx("Mods", ImGuiTreeNodeFlags.SpanAvailWidth))
         {
           ImGui.Indent();
           foreach (ModpackMod mod in packs.Value.mods)
@@ -561,6 +570,7 @@ partial class EntryPoint
             DoModpackMod(mod, packs.Key);
           }
           ImGui.Unindent();
+          ImGui.TreePop();
         }
         ImGui.Unindent();
         ImGui.PopID();
@@ -674,14 +684,11 @@ partial class EntryPoint
       ImGui.SameLine();
       if (ImGui.Button("Cancel")) {
         File.Delete(progress.Value.outputPath);
+        manager.downloadManager.activeDownloads = [..manager.downloadManager.activeDownloads.Where((v) => v.nxm_url != progress.Key)];
         manager.downloadManager.progresses.Remove(progress.Key, out _);
       }
     }
     ImGui.EndChild();
-    /*ImGui.BeginChild("download" + progress.modName, new Vector2(width, 80), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
-    ImGui.Text(progress.modName);
-    ImGui.ProgressBar(progress.BytesDownloaded / progress.TotalBytes, Vector2.Zero, $"{new Humanizer.Bytes.ByteSize(progress.BytesDownloaded).Humanize()}/{new Humanizer.Bytes.ByteSize(progress.TotalBytes).Humanize()}");
-    ImGui.EndChild();*/
   }
 
   private static string modRenamed = string.Empty;
@@ -712,11 +719,6 @@ partial class EntryPoint
   private static void DoMod(ArsenalMod mod, bool doNexusButton) {
     bool ienabled = manager.modManager.modState[mod.Guid].Enabled;
     bool favourited = manager.modManager.favourites.Contains(mod.Guid);
-    /*if (ienabled) {
-      ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0, 0.5f, 0f, 1f));
-      ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0, 0.6f, 0.2f, 1f));
-      ImGui.PushStyleColor(ImGuiCol.HeaderActive, new Vector4(0.1f, 0.65f, 0.3f, 1f));
-    }*/
     bool headerOpen = ImGui.CollapsingHeader((ienabled ? "(X) " : "( ) ") + manager.modManager.modAliases[mod.Guid] + (favourited ? " (Favourited)" : "") + "###" + mod.Guid);
     if (ImGui.BeginPopupContextItem()) {
       if (ImGui.BeginMenu("Add to Modpack")) {
@@ -759,9 +761,6 @@ partial class EntryPoint
       ImGui.Indent();
       ImGui.PushID(mod.Guid);
       ImGui.PushID(mod.GetHashCode());
-      /*if (ienabled) {
-        ImGui.PopStyleColor(3);
-      }*/
       if (mod.Manifest.HasValue && mod.Manifest.Value.IconPath != null)
       {
         string path = Path.Join(ModManager.ModHolder, mod.FolderName, mod.Manifest.Value.IconPath);
@@ -808,6 +807,20 @@ partial class EntryPoint
         manager.nexusIds.Remove(mod.Guid);
         manager.SaveData();
       }
+      ImGui.Button("Add to Modpack");
+      ImGui.OpenPopupOnItemClick("ModpackAddition", ImGuiPopupFlags.MouseButtonLeft);
+      if (ImGui.BeginPopup("ModpackAddition")) {
+        foreach (KeyValuePair<string, Modpack> pack in manager.modpackManager.modpacks) {
+          if (ImGui.Button(pack.Value.Name)) {
+            if (mod.Manifest.HasValue && mod.Manifest.Value.Options != null)
+              manager.modpackManager.AddModToModpack(mod.Name, mod.Guid, pack.Key, ModManager.ChoicesToPaths(manager.modManager.processedChoices[mod.Guid]));
+            else
+              manager.modpackManager.AddModToModpack(mod.Name, mod.Guid, pack.Key, null);
+            ImGui.CloseCurrentPopup();
+          }
+        }
+        ImGui.EndPopup();
+      }
       ImGui.EndGroup();
       ImGui.SameLine();
       ImGui.Spacing();
@@ -843,22 +856,21 @@ partial class EntryPoint
         if (mod.Manifest.Value.Description != null) {
           ImGui.Text(mod.Manifest.Value.Description);
         }
-        if (mod.Manifest.Value.Options != null && mod.Manifest.Value.Options.Length > 0)
-          if (ImGui.CollapsingHeader("Options"))
+        if (mod.Manifest.Value.Options != null && mod.Manifest.Value.Options.Length > 0) {
+          if (mod.Manifest.Value.Description != null)
+            ImGui.Separator();
+          if (ImGui.TreeNodeEx("Options", ImGuiTreeNodeFlags.SpanAvailWidth))
           {
             DrawChoices(mod);
+            ImGui.TreePop();
           }
+        }
       }
       ImGui.EndGroup();
       ImGui.PopID();
       ImGui.PopID();
       ImGui.Unindent();
       ImGui.Separator();
-    }
-    else {
-      /*if (ienabled) {
-        ImGui.PopStyleColor(3);
-      }*/
     }
   }
 
@@ -868,20 +880,32 @@ partial class EntryPoint
     if (manifest.Options == null) return;
     ManifestChoices[] choices = manager.modManager.processedChoices[mod.Guid];
     float remaining = ImGui.GetContentRegionAvail().X;
+    ImGui.BeginGroup();
     if (ImGui.Button("Enable all options and sub-options")) {
-      manager.modManager.ActivateAllOptions(mod.Guid);
+      manager.modManager.ActivateAllOptionsAndSubOptions(mod.Guid);
     }
-    ImGui.SameLine();
     if (ImGui.Button("Disable all options and sub-options")) {
-      manager.modManager.DisableAllOptions(mod.Guid);
+      manager.modManager.DisableAllOptionsAndSubOptions(mod.Guid);
     }
+    ImGui.EndGroup();
+    ImGui.SameLine();
+    ImGui.BeginGroup();
     if (ImGui.Button("Enable all sub options")) {
       manager.modManager.EnableAllSubOptions(mod.Guid);
     }
-    ImGui.SameLine();
     if (ImGui.Button("Disable all sub options")) {
       manager.modManager.DisableAllSubOptions(mod.Guid);
     }
+    ImGui.EndGroup();
+    ImGui.SameLine();
+    ImGui.BeginGroup();
+    if (ImGui.Button("Enable all options")) {
+      manager.modManager.ActivateAllOptions(mod.Guid);
+    }
+    if (ImGui.Button("Disable all options")) {
+      manager.modManager.DisableAllOptions(mod.Guid);
+    }
+    ImGui.EndGroup();
     ImGui.BeginChild($"{mod.Guid}Choices", new(remaining, 400), ImGuiChildFlags.Borders, ImGuiWindowFlags.HorizontalScrollbar);
     foreach (ManifestChoices choice in choices) {
       ImGui.Text(choice.Name);
@@ -913,10 +937,11 @@ partial class EntryPoint
       if (choice.SubChoices != null)
       {
         ImGui.Indent();
-        if (ImGui.CollapsingHeader($"Sub Options##{mod.Guid}{choice.Name}")) {
+        if (ImGui.TreeNodeEx($"Sub Options##{mod.Guid}{choice.Name}", ImGuiTreeNodeFlags.SpanAvailWidth)) {
           ImGui.Indent();
           DrawSubChoices(choice.SubChoices, mod.Guid, mod.FolderName, choice.Name!);
           ImGui.Unindent();
+          ImGui.TreePop();
         }
         ImGui.Unindent();
       }
@@ -1065,13 +1090,16 @@ partial class EntryPoint
       ImGui.Text("HD2 data path is unspecified or does not exist.");
       if (ImGui.InputText("Path to Helldivers 2/data", ref DataPathStr, 500, ImGuiInputTextFlags.EnterReturnsTrue)) {
         if (Directory.Exists(DataPathStr)) {
-          File.WriteAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt"), DataPathStr);
+          File.WriteAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt"), DataPathStr);
           NeedsHD2DataPath = false;
           if (!NeedsKey) {
             StartManager();
-            UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+            UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
           }
           ImGui.CloseCurrentPopup();
+        }
+        else {
+          DataPathStr = "Path specified is invalid or does not exist.";
         }
       }
       ImGui.EndPopup();
@@ -1092,24 +1120,24 @@ partial class EntryPoint
           System.Diagnostics.Process.Start("explorer.exe", "\"https://next.nexusmods.com/settings/api-keys\"");
         }
       }
-      ImGui.Text($"Make a plaintext file at {Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "key.txt")} and input your API key.");
+      ImGui.Text($"Make a plaintext file at {Path.Join(ModManager.yahd2mm_basepath, "key.txt")} and input your API key.");
       if (ImGui.Button("Open folder"))
       {
         if (OperatingSystem.IsLinux()) {
-          System.Diagnostics.Process.Start("xdg-open", $"\"{Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm")}\"");
+          System.Diagnostics.Process.Start("xdg-open", $"\"{ModManager.yahd2mm_basepath}\"");
         }
         else {
-          System.Diagnostics.Process.Start("explorer.exe", $"\"{Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm")}\"");
+          System.Diagnostics.Process.Start("explorer.exe", $"\"{ModManager.yahd2mm_basepath}\"");
         }
       }
       if (ImGui.Button("Key file created?"))
       {
-        if (File.Exists(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "key.txt")))
+        if (File.Exists(Path.Join(ModManager.yahd2mm_basepath, "key.txt")))
         {
           NeedsKey = false;
           if (!NeedsHD2DataPath) {
             StartManager();
-            UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm", "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+            UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
           }
           ImGui.CloseCurrentPopup();
         }
