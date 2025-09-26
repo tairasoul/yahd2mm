@@ -685,6 +685,7 @@ partial class EntryPoint
       if (ImGui.Button("Cancel")) {
         File.Delete(progress.Value.outputPath);
         manager.downloadManager.activeDownloads = [..manager.downloadManager.activeDownloads.Where((v) => v.nxm_url != progress.Key)];
+        manager.downloadManager.SaveData();
         manager.downloadManager.progresses.Remove(progress.Key, out _);
       }
     }
