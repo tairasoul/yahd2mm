@@ -1,5 +1,8 @@
 using System.Collections.Concurrent;
+using Aspose.Zip.SevenZip;
 using Newtonsoft.Json;
+using SharpCompress.Common;
+using SharpCompress.Readers;
 
 namespace yahd2mm;
 
@@ -38,11 +41,12 @@ struct ModFileAPIResponse {
   public string name;
 }
 
-enum DownloadStatus {
+enum DownloadStatus : uint {
   Done,
   Active,
   Paused,
-  Cancelled
+  Cancelled,
+  Expired
 }
 
 struct DownloadState {
@@ -56,16 +60,157 @@ struct DownloadState {
   public string mainModName;
 }
 
+struct ActiveDownload {
+  public string download_url;
+  public string nxm_url;
+  public string outputPath;
+  public string version;
+  public string modName;
+  public string mainModName;
+  public long totalBytes;
+  public DownloadStatus currentState;
+}
+
 class DownloadManager {
   internal ConcurrentDictionary<string, DownloadState> progresses = [];
+  internal static string ActiveDownloadsPath = Path.Join(ModManager.yahd2mm_basepath, "active-downloads.json");
+  internal ConcurrentBag<ActiveDownload> activeDownloads = File.Exists(ActiveDownloadsPath) ? JsonConvert.DeserializeObject<ConcurrentBag<ActiveDownload>>(File.ReadAllText(ActiveDownloadsPath)) ?? [] : [];
   readonly HttpClient client;
 
   public EventHandler<(string, string, string, string)> DownloadFinished = (_, __) => {};
 
-  public DownloadManager() {
+  public DownloadManager(Manager manager) {
     client = new();
-    client.DefaultRequestHeaders.Add("User-Agent", "yahd2mm/0.3.9 .NET/9.0");
+    client.DefaultRequestHeaders.Add("User-Agent", "yahd2mm/0.4.0 .NET/9.0");
     client.DefaultRequestHeaders.Add("apikey", EntryPoint.APIKey);
+    List<string> urlsToResume = [];
+    foreach (ActiveDownload download in activeDownloads) {
+      long bytesRead = new FileInfo(download.outputPath).Length;
+      DownloadState state = new()
+      {
+        bytesRead = bytesRead,
+        totalBytes = download.totalBytes,
+        downloadURL = download.download_url,
+        outputPath = download.outputPath,
+        status = download.currentState,
+        mainModName = download.mainModName,
+        modName = download.modName,
+        version = download.version
+      };
+      progresses[download.nxm_url] = state;
+      if (download.currentState == DownloadStatus.Active)
+        urlsToResume.Add(download.nxm_url);
+    }
+    foreach (string resume in urlsToResume) {
+      AddFinishedListener(resume, manager);
+      ResumeDownload(resume);
+    }
+  }
+
+  private void AddFinishedListener(string url, Manager manager) {
+    void d(object? sender, (string, string, string, string) output)
+    {
+      if (output.Item2 != url) return;
+      ProcessedLink l = DownloadManager.ProcessLink(output.Item2);
+      DownloadFinished -= d;
+      string ModName = "ExtractFailed";
+      try
+      {
+        using Stream stream = File.OpenRead(output.Item3);
+        using IReader reader = ReaderFactory.Open(stream);
+        string outputDir = Path.Join(ModManager.ModHolder, Path.GetFileNameWithoutExtension(output.Item1));
+        if (Directory.Exists(outputDir))
+          Directory.Delete(outputDir, true);
+        Directory.CreateDirectory(outputDir);
+        reader.WriteAllToDirectory(outputDir, new()
+        {
+          ExtractFullPath = true,
+          Overwrite = true
+        });
+        string[] files = [.. Directory.EnumerateFiles(outputDir), .. Directory.EnumerateDirectories(outputDir)];
+        string guid;
+        if (files.Length == 1 && Directory.Exists(files[0]))
+        {
+          Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          Directory.Delete(outputDir);
+          ArsenalMod m = manager.modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          ModName = m.Name;
+          guid = m.Guid;
+        }
+        else
+        {
+          ArsenalMod m = manager.modManager.ProcessMod(outputDir);
+          ModName = m.Name;
+          guid = m.Guid;
+        }
+        manager.modManager.modState[guid] = manager.modManager.modState[guid] with { Version = output.Item4, InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
+        manager.nexusIds[guid] = new() {
+          id = l.modId,
+          mainMod = progresses[output.Item2].mainModName
+        };
+        manager.modManager.SaveData();
+        SaveData();
+        ArsenalMod[] mods = [ .. manager.modManager.mods ];
+        Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
+        manager.modManager.mods = [.. mods];
+        if (Config.cfg.ActivateOnInstall) {
+          manager.modManager.EnableMod(guid);
+        }
+        if (Config.cfg.ActivateOptionsOnInstall) {
+          manager.modManager.ActivateAllOptionsAndSubOptions(guid);
+        }
+      }
+      catch (InvalidFormatException) {
+        using Stream stream = File.OpenRead(output.Item3);
+        using SevenZipArchive archive = new(stream);
+        string outputDir = Path.Join(ModManager.ModHolder, Path.GetFileNameWithoutExtension(output.Item1));
+        if (Directory.Exists(outputDir))
+          Directory.Delete(outputDir, true);
+        Directory.CreateDirectory(outputDir);
+        archive.ExtractToDirectory(outputDir);
+        string[] files = [.. Directory.EnumerateFiles(outputDir), .. Directory.EnumerateDirectories(outputDir)];
+        string guid;
+        if (files.Length == 1 && Directory.Exists(files[0]))
+        {
+          Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          Directory.Delete(outputDir);
+          ArsenalMod m = manager.modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          ModName = m.Name;
+          guid = m.Guid;
+        }
+        else
+        {
+          ArsenalMod m = manager.modManager.ProcessMod(outputDir);
+          ModName = m.Name;
+          guid = m.Guid;
+        }
+        manager.modManager.modState[guid] = manager.modManager.modState[guid] with { Version = output.Item4, InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
+        manager.nexusIds[guid] = new() {
+          id = l.modId,
+          mainMod = progresses[output.Item2].mainModName
+        };
+        manager.modManager.SaveData();
+        SaveData();
+        ArsenalMod[] mods = [.. manager.modManager.mods];
+        Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
+        manager.modManager.mods = [.. mods];
+        if (Config.cfg.ActivateOnInstall) {
+          manager.modManager.EnableMod(guid);
+        }
+        if (Config.cfg.ActivateOptionsOnInstall) {
+          manager.modManager.ActivateAllOptionsAndSubOptions(guid);
+        }
+      }
+      finally
+      {
+        EntryPoint.queue.Delete(output.Item3);
+      }
+    }
+    DownloadFinished += d;
+  }
+
+  internal void SaveData() {
+    File.WriteAllText(ActiveDownloadsPath, JsonConvert.SerializeObject(activeDownloads));
   }
 
   internal static ProcessedLink ProcessLink(string url) {
@@ -168,15 +313,31 @@ class DownloadManager {
       {
         status = DownloadStatus.Active
       };
+      activeDownloads = [.. activeDownloads.Select((v) => {
+        if (v.nxm_url == url) {
+          return v with { currentState = DownloadStatus.Active };
+        }
+        return v;
+      })];
+      SaveData();
       int bytesRead;
       resuming.Remove(url);
       bool finished = false;
       while (true)
       {
         if (progresses[url].status == DownloadStatus.Paused) {
+          activeDownloads = [.. activeDownloads.Select((v) => {
+            if (v.nxm_url == url) {
+              return v with { currentState = DownloadStatus.Paused };
+            }
+            return v;
+          })];
+          SaveData();
           break;
         }
         if (progresses[url].status == DownloadStatus.Cancelled) {
+          activeDownloads = [..activeDownloads.Where((v) => v.nxm_url != url)];
+          SaveData();
           fileStream.Flush();
           fileStream.Dispose();
           File.Delete(fullPath);
@@ -200,6 +361,8 @@ class DownloadManager {
         fileStream.Flush();
         fileStream.Dispose();
         Console.WriteLine("download finished");
+        activeDownloads = [..activeDownloads.Where((v) => v.nxm_url != url)];
+        SaveData();
         progresses[url] = progresses[url] with { status = DownloadStatus.Done };
         DownloadFinished.Invoke(null, (Path.GetFileName(state.outputPath), url, fullPath, state.version));
       }
@@ -227,7 +390,7 @@ class DownloadManager {
       using Stream contentStream = await response.Content.ReadAsStreamAsync();
       using FileStream fileStream = new(
         fullPath,
-        FileMode.Create,
+        FileMode.Append,
         FileAccess.Write,
         FileShare.None,
         bufferSize: 8192,
@@ -243,14 +406,34 @@ class DownloadManager {
         version = modInfo.version,
         mainModName = mainModInfo.name
       };
+      activeDownloads.Add(new() {
+        outputPath = fullPath,
+        download_url = url,
+        nxm_url = url,
+        version = modInfo.version,
+        modName = modInfo.name,
+        mainModName = mainModInfo.name,
+        currentState = DownloadStatus.Active,
+        totalBytes = totalBytes
+      });
+      SaveData();
       int bytesRead;
       bool finished = false;
       while (true)
       {
         if (progresses[originalURL].status == DownloadStatus.Paused) {
+          activeDownloads = [.. activeDownloads.Select((v) => {
+            if (v.nxm_url == url) {
+              return v with { currentState = DownloadStatus.Paused };
+            }
+            return v;
+          })];
+          SaveData();
           break;
         }
         if (progresses[originalURL].status == DownloadStatus.Cancelled) {
+          activeDownloads = [..activeDownloads.Where((v) => v.nxm_url != originalURL)];
+          SaveData();
           fileStream.Flush();
           fileStream.Dispose();
           File.Delete(fullPath);
@@ -273,6 +456,8 @@ class DownloadManager {
       {
         fileStream.Flush();
         fileStream.Dispose();
+        activeDownloads = [..activeDownloads.Where((v) => v.nxm_url != originalURL)];
+        SaveData();
         Console.WriteLine("download finished");
         progresses[originalURL] = progresses[originalURL] with { status = DownloadStatus.Done };
         DownloadFinished.Invoke(null, (filename, originalURL, fullPath, modInfo.version));

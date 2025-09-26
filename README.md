@@ -73,7 +73,9 @@ tab for the nxm handler
 
 any mods being downloaded are here
 
-can cancel/pause download, but paused downloads will not persist if you relaunch the manager yet
+can cancel/pause a download
+
+downloads should persist correctly when you relaunch the manager (or if it crashes)
 
 ### Completed Downloads
 
