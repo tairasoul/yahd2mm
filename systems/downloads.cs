@@ -409,7 +409,7 @@ class DownloadManager {
       activeDownloads.Add(new() {
         outputPath = fullPath,
         download_url = url,
-        nxm_url = url,
+        nxm_url = originalURL,
         version = modInfo.version,
         modName = modInfo.name,
         mainModName = mainModInfo.name,
