@@ -575,7 +575,7 @@ partial class EntryPoint
   private static void DoModpackMod(ModpackMod mod, string name)
   {
     ImGui.PushID(mod.guid);
-    if (ImGui.TreeNodeEx(mod.name))
+    if (ImGui.TreeNodeEx(manager.modManager.mods.Any((v) => v.Guid == mod.guid) ? mod.name : $"(!!) {mod.name} (NOT INSTALLED)"))
     {
       if (mod.options != null)
       {

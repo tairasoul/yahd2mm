@@ -66,13 +66,16 @@ class ModpackManager {
         manager.DisableMod(mod.Key);
       }
     }
-    EntryPoint.queue.WaitForEmpty();
     foreach (ModpackMod mod in pack.mods) {
-      manager.EnableMod(mod.guid);
-      if (mod.options != null)
-        foreach (string option in mod.options) {
-          manager.EnableChoice(mod.guid, option);
-        }
+      if (manager.mods.Any((v) => v.Guid == mod.guid))
+      {
+        manager.EnableMod(mod.guid);
+        if (mod.options != null)
+          foreach (string option in mod.options)
+          {
+            manager.EnableChoice(mod.guid, option);
+          }
+      }
     }
     EntryPoint.queue.WaitForEmpty();
     manager.CheckForPatchGaps();
