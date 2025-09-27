@@ -18,6 +18,7 @@ class Manager {
   internal Dictionary<string, NexusData> nexusIds = File.Exists(NexusIds) ? JsonConvert.DeserializeObject<Dictionary<string, NexusData>>(File.ReadAllText(NexusIds).Trim()) ?? [] : [];
   internal EventHandler<DownloadProgress> FileDownloadProgress = (_, __) => {};
   internal EventHandler<(string, string, string)> FileDownloaded = (_, __) => {};
+  internal Dictionary<string, string> modNames = [];
   internal DownloadManager downloadManager;
   internal ModManager modManager;
   internal ModpackManager modpackManager;
@@ -158,6 +159,7 @@ class Manager {
           guid = m.Guid;
         }
         modManager.modState[guid] = modManager.modState[guid] with { Version = output.Item4, InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
+        modNames[output.Item2] = ModName;
         nexusIds[guid] = new() {
           id = l.modId,
           mainMod = downloadManager.progresses[output.Item2].mainModName
@@ -199,6 +201,7 @@ class Manager {
           guid = m.Guid;
         }
         modManager.modState[guid] = modManager.modState[guid] with { Version = output.Item4, InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
+        modNames[output.Item2] = ModName;
         nexusIds[guid] = new() {
           id = l.modId,
           mainMod = downloadManager.progresses[output.Item2].mainModName

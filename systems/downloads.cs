@@ -144,6 +144,7 @@ class DownloadManager {
           guid = m.Guid;
         }
         manager.modManager.modState[guid] = manager.modManager.modState[guid] with { Version = output.Item4, InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
+        manager.modNames[output.Item2] = ModName;
         manager.nexusIds[guid] = new() {
           id = l.modId,
           mainMod = progresses[output.Item2].mainModName
@@ -185,6 +186,7 @@ class DownloadManager {
           guid = m.Guid;
         }
         manager.modManager.modState[guid] = manager.modManager.modState[guid] with { Version = output.Item4, InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
+        manager.modNames[output.Item2] = ModName;
         manager.nexusIds[guid] = new() {
           id = l.modId,
           mainMod = progresses[output.Item2].mainModName
@@ -298,9 +300,9 @@ class DownloadManager {
       client.DefaultRequestHeaders.Range = null;
       response.EnsureSuccessStatusCode();
       string fullPath = state.outputPath;
-      var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-      var totalBytesRead = state.bytesRead;
-      var buffer = new byte[8192];
+      long totalBytes = response.Content.Headers.ContentLength ?? -1L;
+      long totalBytesRead = state.bytesRead;
+      byte[] buffer = new byte[8192];
       using Stream contentStream = await response.Content.ReadAsStreamAsync();
       using FileStream fileStream = new(
         fullPath,
@@ -384,9 +386,9 @@ class DownloadManager {
       string filename = Uri.UnescapeDataString(GetFileNameFromUrl(url) ?? "downloaded_mod.zip");
       filename = (modInfo.name + Path.GetExtension(filename)) ?? filename;
       string fullPath = Path.Join(output, filename);
-      var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-      var totalBytesRead = 0L;
-      var buffer = new byte[8192];
+      long totalBytes = response.Content.Headers.ContentLength ?? -1L;
+      long totalBytesRead = 0L;
+      byte[] buffer = new byte[8192];
       using Stream contentStream = await response.Content.ReadAsStreamAsync();
       using FileStream fileStream = new(
         fullPath,
@@ -442,7 +444,7 @@ class DownloadManager {
         }
         bytesRead = await contentStream.ReadAsync(buffer);
         if (bytesRead <= 0) {
-          finished = true;;
+          finished = true;
           break;
         }
         await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));

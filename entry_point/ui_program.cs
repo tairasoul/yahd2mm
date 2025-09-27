@@ -5,7 +5,6 @@ using ImGuiNET;
 using System.Diagnostics;
 using System.Numerics;
 using Veldrid.ImageSharp;
-using Humanizer;
 using FuzzySharp;
 using System.IO.Pipes;
 using System.Text;
@@ -23,16 +22,9 @@ struct ArsenalModGroup {
 
 partial class EntryPoint
 {
-  private static bool NeedsKey = !File.Exists(Path.Join(ModManager.yahd2mm_basepath, "key.txt"));
-  private static bool NeedsHD2DataPath = !(File.Exists(Path.Join(ModManager.yahd2mm_basepath, "path.txt")) && Directory.Exists(File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim()));
-  internal static bool UseHardlinks;
-  private static Sdl2Window window;
-  private static GraphicsDevice gd;
-  private static CommandList cl;
-  private static ImGuiRenderer controller;
   private static bool IsAdministrator() {
     if (OperatingSystem.IsWindows()) {
-      return Environment.IsPrivilegedProcess || Path.GetPathRoot(File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+      return Environment.IsPrivilegedProcess || Path.GetPathRoot(File.ReadAllText(HD2PathFile).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
     }
     return true;
   }
@@ -59,7 +51,7 @@ partial class EntryPoint
       return;
     }
     files = new();
-    queue = OperatingSystem.IsLinux() ? new FilesystemQueue() : new WindowsFilesystemQueue();
+    queue = OperatingSystem.IsLinux() ? new LinuxFilesystemQueue() : new WindowsFilesystemQueue();
     queue.StartThread();
     VeldridStartup.CreateWindowAndGraphicsDevice(
       new WindowCreateInfo(50, 50, 1280, 720, WindowState.Normal, "yahd2mm"),
@@ -231,22 +223,24 @@ partial class EntryPoint
   private static void DoCompletedDownloads() {
     if (ImGui.Button("Clear")) {
       manager.downloadManager.progresses = new(manager.downloadManager.progresses.ToDictionary().Where((v) => v.Value.status != DownloadStatus.Done));
+      manager.modNames.Clear();
     }
     ImGui.BeginChild("ScrollableDownloads", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders, ImGuiWindowFlags.AlwaysVerticalScrollbar);
-    foreach (DownloadState progress in manager.downloadManager.progresses.ToList().Where((v) => v.Value.status == DownloadStatus.Done || v.Value.status == DownloadStatus.Cancelled).Select((v) => v.Value))
+    foreach (KeyValuePair<string, DownloadState> progress in manager.downloadManager.progresses.ToList().Where((v) => v.Value.status == DownloadStatus.Done || v.Value.status == DownloadStatus.Cancelled))
     {
       DoCompletedDownload(progress);
     }
     ImGui.EndChild();
   }
 
-  private static void DoCompletedDownload(DownloadState progress) {
+  private static void DoCompletedDownload(KeyValuePair<string, DownloadState> kvp) {
     float width = ImGui.GetContentRegionAvail().X;
+    DownloadState progress = kvp.Value;
     ImGui.BeginChild("download" + Path.GetFileName(progress.outputPath), new Vector2(width, 100), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
     ImGui.Text($"Filename: {Path.GetFileName(progress.outputPath)}");
-    ImGui.Text($"Mod name: {progress.modName}");
+    ImGui.Text($"Mod name: {manager.modNames[kvp.Key]}");
     ImGui.Text($"Status: {(progress.status == DownloadStatus.Done ? "Done" : "Cancelled")}");
-    ImGui.Text($"Mod size: {new Humanizer.Bytes.ByteSize(progress.totalBytes).Humanize()}");
+    ImGui.Text($"Mod size: {FormatBytes(progress.totalBytes)}");
     ImGui.EndChild();
   }
 
@@ -662,12 +656,25 @@ partial class EntryPoint
     }
   }
 
+  private static string FormatBytes(long bytes)
+  {
+    string[] units = ["B", "KB", "MB", "GB"];
+    double size = bytes;
+    int unit = 0;
+    while (size >= 1024 && unit < units.Length - 1)
+    {
+      size /= 1024;
+      unit++;
+    }
+    return $"{size:0.###} {units[unit]}";
+  }
+
   private static void DoDownload(KeyValuePair<string, DownloadState> progress)
   {
     float width = ImGui.GetContentRegionAvail().X;
     ImGui.BeginChild("download" + progress.Value.modName, new Vector2(width, 80), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
     ImGui.Text(progress.Value.modName);
-    ImGui.ProgressBar(progress.Value.bytesRead / progress.Value.totalBytes, Vector2.Zero, $"{new Humanizer.Bytes.ByteSize(progress.Value.bytesRead).Humanize()}/{new Humanizer.Bytes.ByteSize(progress.Value.totalBytes).Humanize()}");
+    ImGui.ProgressBar(progress.Value.bytesRead / progress.Value.totalBytes, Vector2.Zero, $"{FormatBytes(progress.Value.bytesRead)}/{FormatBytes(progress.Value.totalBytes)}");
     if (progress.Value.status == DownloadStatus.Active) {
       if (ImGui.Button("Pause")) {
         manager.downloadManager.progresses[progress.Key] = manager.downloadManager.progresses[progress.Key] with { status = DownloadStatus.Paused };
@@ -776,11 +783,9 @@ partial class EntryPoint
       if (ImGui.Checkbox("Enable", ref enabled)) {
         if (enabled) {
           manager.modManager.EnableMod(mod.Guid);
-          queue.WaitForEmpty();
         }
         else {
           manager.modManager.DisableMod(mod.Guid);
-          queue.WaitForEmpty();
           manager.modManager.CheckForPatchGaps();
         }
       }
@@ -1085,17 +1090,24 @@ partial class EntryPoint
 
   private static string DataPathStr = string.Empty;
 
+  private static bool IsValidHD2Directory(string path) {
+    bool exists = Directory.Exists(path);
+    bool foundBin = Directory.Exists(Path.Join(path, "..", "bin"));
+    bool foundHD2 = File.Exists(Path.Join(path, "..", "bin", "helldivers2.exe"));
+    return exists && foundBin && foundHD2;
+  }
+
   private static void PromptForDataPath() {
     if (ImGui.BeginPopupModal("Data Path", ImGuiWindowFlags.Popup | ImGuiWindowFlags.Modal | ImGuiWindowFlags.AlwaysAutoResize))
     {
       ImGui.Text("HD2 data path is unspecified or does not exist.");
       if (ImGui.InputText("Path to Helldivers 2/data", ref DataPathStr, 500, ImGuiInputTextFlags.EnterReturnsTrue)) {
-        if (Directory.Exists(DataPathStr)) {
-          File.WriteAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt"), DataPathStr);
+        if (IsValidHD2Directory(DataPathStr)) {
+          File.WriteAllText(HD2PathFile, DataPathStr);
           NeedsHD2DataPath = false;
           if (!NeedsKey) {
             StartManager();
-            UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+            UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(HD2PathFile).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
           }
           ImGui.CloseCurrentPopup();
         }
@@ -1121,7 +1133,7 @@ partial class EntryPoint
           System.Diagnostics.Process.Start("explorer.exe", "\"https://next.nexusmods.com/settings/api-keys\"");
         }
       }
-      ImGui.Text($"Make a plaintext file at {Path.Join(ModManager.yahd2mm_basepath, "key.txt")} and input your API key.");
+      ImGui.Text($"Make a plaintext file at {KeyFile} and input your API key.");
       if (ImGui.Button("Open folder"))
       {
         if (OperatingSystem.IsLinux()) {
@@ -1133,12 +1145,12 @@ partial class EntryPoint
       }
       if (ImGui.Button("Key file created?"))
       {
-        if (File.Exists(Path.Join(ModManager.yahd2mm_basepath, "key.txt")))
+        if (File.Exists(KeyFile))
         {
           NeedsKey = false;
           if (!NeedsHD2DataPath) {
             StartManager();
-            UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+            UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(HD2PathFile).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
           }
           ImGui.CloseCurrentPopup();
         }
