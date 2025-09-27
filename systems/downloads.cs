@@ -111,7 +111,7 @@ class DownloadManager {
     void d(object? sender, (string, string, string, string) output)
     {
       if (output.Item2 != url) return;
-      ProcessedLink l = DownloadManager.ProcessLink(output.Item2);
+      ProcessedLink l = ProcessLink(output.Item2);
       DownloadFinished -= d;
       string ModName = "ExtractFailed";
       try
