@@ -191,9 +191,9 @@ partial class EntryPoint
     ImGui.SetNextWindowPos(ImGui.GetMainViewport().GetCenter(), ImGuiCond.Always, new Vector2(0.5f, 0.5f));
     if (ImGui.BeginPopupModal("Admin Permissions", ImGuiWindowFlags.Popup | ImGuiWindowFlags.Modal | ImGuiWindowFlags.AlwaysAutoResize))
     {
-      ImGui.Text("Your Helldivers 2 install is on a different drive than where yahd2mm downloads mods to.");
-      ImGui.Text("Hardlinks do not function across drive boundaries, and as such symlinks are required.");
-      ImGui.Text("Symlinks require admin permissions. yahd2mm will relaunch with admin permissions.");
+      ImGui.TextUnformatted("Your Helldivers 2 install is on a different drive than where yahd2mm downloads mods to.");
+      ImGui.TextUnformatted("Hardlinks do not function across drive boundaries, and as such symlinks are required.");
+      ImGui.TextUnformatted("Symlinks require admin permissions. yahd2mm will relaunch with admin permissions.");
       if (ImGui.Button("I understand.")) {
         manager?.server?.Dispose();
         ProcessStartInfo info = new()
@@ -237,10 +237,10 @@ partial class EntryPoint
     float width = ImGui.GetContentRegionAvail().X;
     DownloadState progress = kvp.Value;
     ImGui.BeginChild("download" + Path.GetFileName(progress.outputPath), new Vector2(width, 100), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
-    ImGui.Text($"Filename: {Path.GetFileName(progress.outputPath)}");
-    ImGui.Text($"Mod name: {manager.modNames[kvp.Key]}");
-    ImGui.Text($"Status: {(progress.status == DownloadStatus.Done ? "Done" : "Cancelled")}");
-    ImGui.Text($"Mod size: {FormatBytes(progress.totalBytes)}");
+    ImGui.TextUnformatted($"Filename: {Path.GetFileName(progress.outputPath)}");
+    ImGui.TextUnformatted($"Mod name: {manager.modNames[kvp.Key]}");
+    ImGui.TextUnformatted($"Status: {(progress.status == DownloadStatus.Done ? "Done" : "Cancelled")}");
+    ImGui.TextUnformatted($"Mod size: {FormatBytes(progress.totalBytes)}");
     ImGui.EndChild();
   }
 
@@ -261,7 +261,7 @@ partial class EntryPoint
       {
         draggedIndex = i;
         ImGui.SetDragDropPayload("MOD_PRIORITY_ITEM", IntPtr.Zero, 0);
-        ImGui.Text("Dragging: " + item);
+        ImGui.TextUnformatted("Dragging: " + item);
         ImGui.EndDragDropSource();
       }
 
@@ -304,7 +304,7 @@ partial class EntryPoint
     foreach (string file in files.localFiles) {
       ImGui.BeginChild($"localFile{file}", new(ImGui.GetContentRegionAvail().X, 120), ImGuiChildFlags.Borders | ImGuiChildFlags.AutoResizeX | ImGuiChildFlags.AlwaysAutoResize);
       ImGui.BeginChild($"localFile{file}Name", new(ImGui.GetContentRegionAvail().X, 60), ImGuiChildFlags.Borders, ImGuiWindowFlags.AlwaysHorizontalScrollbar);
-      ImGui.Text(Path.GetFileName(file));
+      ImGui.TextUnformatted(Path.GetFileName(file));
       ImGui.EndChild();
       ImGui.Spacing();
       if (ImGui.Button($"Install##{file}")) {
@@ -372,7 +372,7 @@ partial class EntryPoint
       }
     }
     ImGui.InputText("Search", ref SearchingString, 80, ImGuiInputTextFlags.EscapeClearsAll | ImGuiInputTextFlags.AlwaysOverwrite);
-    ImGui.Text("Priority list is ignored when enabling/disabling mods here, apply in Priorities!");
+    ImGui.TextUnformatted("Priority list is ignored when enabling/disabling mods here, apply in Priorities!");
     ImGui.BeginChild("ScrollableModlist", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders, ImGuiWindowFlags.AlwaysVerticalScrollbar);
     ArsenalMod[] mods = [.. manager.modManager.mods];
     Array.Sort(mods, (x, y) => string.Compare(manager.modManager.modAliases[x.Guid], manager.modManager.modAliases[y.Guid]));
@@ -579,11 +579,11 @@ partial class EntryPoint
     {
       if (mod.options != null)
       {
-        ImGui.Text("Enabled options:");
+        ImGui.TextUnformatted("Enabled options:");
         ImGui.Indent();
         foreach (string opt in mod.options)
         {
-          ImGui.Text(opt);
+          ImGui.TextUnformatted(opt);
         }
         ImGui.Unindent();
         ImGui.Spacing();
@@ -673,7 +673,7 @@ partial class EntryPoint
   {
     float width = ImGui.GetContentRegionAvail().X;
     ImGui.BeginChild("download" + progress.Value.modName, new Vector2(width, 80), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
-    ImGui.Text(progress.Value.modName);
+    ImGui.TextUnformatted(progress.Value.modName);
     ImGui.ProgressBar(progress.Value.bytesRead / progress.Value.totalBytes, Vector2.Zero, $"{FormatBytes(progress.Value.bytesRead)}/{FormatBytes(progress.Value.totalBytes)}");
     if (progress.Value.status == DownloadStatus.Active) {
       if (ImGui.Button("Pause")) {
@@ -703,8 +703,8 @@ partial class EntryPoint
 
   private static void RenameMod(ArsenalMod mod)
   {
-    ImGui.Text($"Default name: {mod.Name}");
-    ImGui.Text($"Current name: {manager.modManager.modAliases[mod.Guid]}");
+    ImGui.TextUnformatted($"Default name: {mod.Name}");
+    ImGui.TextUnformatted($"Current name: {manager.modManager.modAliases[mod.Guid]}");
     ImGui.InputText("New name", ref modRenamed, 500);
     if (ImGui.Button("Apply") && modRenamed != "" && modRenamed != string.Empty)
     {
@@ -833,12 +833,12 @@ partial class EntryPoint
       ImGui.SameLine();
       ImGui.BeginGroup();
       if (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data)) {
-        ImGui.Text($"Mod version: {manager.modManager.modState[mod.Guid].Version}");
+        ImGui.TextUnformatted($"Mod version: {manager.modManager.modState[mod.Guid].Version}");
         if (manager.modManager.modState[mod.Guid].InstalledAt != 0L) {
           ImGui.SameLine();
           ImGui.Spacing();
           ImGui.SameLine();
-          ImGui.Text($"Installed on {DateTimeOffset.FromUnixTimeMilliseconds(manager.modManager.modState[mod.Guid].InstalledAt):MMMM d, yyyy}");
+          ImGui.TextUnformatted($"Installed on {DateTimeOffset.FromUnixTimeMilliseconds(manager.modManager.modState[mod.Guid].InstalledAt):MMMM d, yyyy}");
         }
         if (doNexusButton)
         {
@@ -860,7 +860,7 @@ partial class EntryPoint
       } 
       if (mod.Manifest.HasValue) {
         if (mod.Manifest.Value.Description != null) {
-          ImGui.Text(mod.Manifest.Value.Description);
+          ImGui.TextUnformatted(mod.Manifest.Value.Description);
         }
         if (mod.Manifest.Value.Options != null && mod.Manifest.Value.Options.Length > 0) {
           if (mod.Manifest.Value.Description != null)
@@ -914,7 +914,7 @@ partial class EntryPoint
     ImGui.EndGroup();
     ImGui.BeginChild($"{mod.Guid}Choices", new(remaining, 400), ImGuiChildFlags.Borders, ImGuiWindowFlags.HorizontalScrollbar);
     foreach (ManifestChoices choice in choices) {
-      ImGui.Text(choice.Name);
+      ImGui.TextUnformatted(choice.Name);
       if (choice.IconPath != null)
       {
         string path = Path.Join(ModManager.ModHolder, mod.FolderName, choice.IconPath);
@@ -926,7 +926,7 @@ partial class EntryPoint
       }
       ImGui.BeginGroup();
       if (choice.Description != null && choice.Description != "")
-        ImGui.Text(choice.Description);
+        ImGui.TextUnformatted(choice.Description);
       bool enabled = choice.Chosen;
       if (ImGui.Checkbox($"Enable##{mod.Guid}{choice.Name}", ref enabled))
       {
@@ -960,7 +960,7 @@ partial class EntryPoint
 
   private static void DrawSubChoices(ManifestChoices[] subChoices, string mod, string folderName, string currentPath) {
     foreach (ManifestChoices choice in subChoices) {
-      ImGui.Text(choice.Name);
+      ImGui.TextUnformatted(choice.Name);
       if (choice.IconPath != null)
       {
         string path = Path.Join(ModManager.ModHolder, folderName, choice.IconPath);
@@ -972,7 +972,7 @@ partial class EntryPoint
       }
       ImGui.BeginGroup();
       if (choice.Description != null && choice.Description != "")
-        ImGui.Text(choice.Description);
+        ImGui.TextUnformatted(choice.Description);
       bool enabled = choice.Chosen;
       if (ImGui.Checkbox($"Enable##{mod}{currentPath}{choice.Name}", ref enabled))
       {
@@ -1100,7 +1100,7 @@ partial class EntryPoint
   private static void PromptForDataPath() {
     if (ImGui.BeginPopupModal("Data Path", ImGuiWindowFlags.Popup | ImGuiWindowFlags.Modal | ImGuiWindowFlags.AlwaysAutoResize))
     {
-      ImGui.Text("HD2 data path is unspecified or does not exist.");
+      ImGui.TextUnformatted("HD2 data path is unspecified or does not exist.");
       if (ImGui.InputText("Path to Helldivers 2/data", ref DataPathStr, 500, ImGuiInputTextFlags.EnterReturnsTrue)) {
         if (IsValidHD2Directory(DataPathStr)) {
           File.WriteAllText(HD2PathFile, DataPathStr);
@@ -1124,7 +1124,7 @@ partial class EntryPoint
     ImGui.SetNextWindowPos(ImGui.GetMainViewport().GetCenter(), ImGuiCond.Always, new Vector2(0.5f, 0.5f));
     if (ImGui.BeginPopupModal("Key Prompt", ImGuiWindowFlags.Popup | ImGuiWindowFlags.Modal | ImGuiWindowFlags.AlwaysAutoResize))
     {
-      ImGui.Text("Nexus API key is required.");
+      ImGui.TextUnformatted("Nexus API key is required.");
       if (ImGui.Button("Open API keys page (needs personal key, at the bottom)")) {
         if (OperatingSystem.IsLinux()) {
           System.Diagnostics.Process.Start("xdg-open", "\"https://next.nexusmods.com/settings/api-keys\"");
@@ -1133,7 +1133,7 @@ partial class EntryPoint
           System.Diagnostics.Process.Start("explorer.exe", "\"https://next.nexusmods.com/settings/api-keys\"");
         }
       }
-      ImGui.Text($"Make a plaintext file at {KeyFile} and input your API key.");
+      ImGui.TextUnformatted($"Make a plaintext file at {KeyFile} and input your API key.");
       if (ImGui.Button("Open folder"))
       {
         if (OperatingSystem.IsLinux()) {
