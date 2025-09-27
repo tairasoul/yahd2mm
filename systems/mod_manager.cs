@@ -58,19 +58,27 @@ partial class ModManager
   static readonly string Favourites = Path.Join(yahd2mm_basepath, "favourites.json");
   static readonly string PriorityList = Path.Join(yahd2mm_basepath, "priority-list.json");
   internal Dictionary<string, ModJson> modState = File.Exists(State) ? JsonConvert.DeserializeObject<Dictionary<string, ModJson>>(File.ReadAllText(State)) ?? [] : [];
-  readonly Dictionary<string, FileAssociation[]> fileRecords = File.Exists(Record) ? JsonConvert.DeserializeObject<Dictionary<string, FileAssociation[]>>(File.ReadAllText(Record)) ?? [] : [];
+  internal readonly Dictionary<string, FileAssociation[]> fileRecords = File.Exists(Record) ? JsonConvert.DeserializeObject<Dictionary<string, FileAssociation[]>>(File.ReadAllText(Record)) ?? [] : [];
   internal readonly Dictionary<string, string[]> modChoices = File.Exists(Choices) ? JsonConvert.DeserializeObject<Dictionary<string, string[]>>(File.ReadAllText(Choices)) ?? [] : [];
   internal Dictionary<string, string> aliases = File.Exists(Aliases) ? JsonConvert.DeserializeObject<Dictionary<string, string>>(File.ReadAllText(Aliases)) ?? [] : [];
   internal List<string> favourites = File.Exists(Favourites) ? JsonConvert.DeserializeObject<List<string>>(File.ReadAllText(Favourites)) ?? [] : [];
   internal string[] priorities = File.Exists(PriorityList) ? JsonConvert.DeserializeObject<string[]>(File.ReadAllText(PriorityList)) ?? [] : [];
   internal AliasDictionary modAliases;
   internal Dictionary<string, ManifestChoices[]> processedChoices = [];
+  private static readonly List<string> existing = [];
+
+  private void SetupExistingList() {
+    foreach (FileAssociation association in fileRecords.Values.SelectMany((v) => v)) {
+      existing.AddRange(association.Files);
+    }
+  }
 
   public ModManager()
   {
     ProcessMods();
     modAliases = new(this);
     priorities = [.. priorities.Where((v) => mods.Any((b) => b.Guid == v))];
+    SetupExistingList();
   }
 
   public void SaveData()
@@ -636,7 +644,7 @@ partial class ModManager
   internal static readonly Regex StreamRegex = IsStream();
   internal static readonly Regex PatchInfoRegex = GrabPatchInfo();
 
-  private static string[] GetFirstValidPatchSet(string[] set, int patchNum, List<string> existing)
+  private static string[] GetFirstValidPatchSet(string[] set, int patchNum)
   {
     string[] sset = [.. set.Select((v) => Path.Join(EntryPoint.HD2Path, new FileInfo(v).Name))];
     string[] extraChecks = [];
@@ -700,7 +708,6 @@ partial class ModManager
     }
     foreach (KeyValuePair<string, string[][]> pair in nextAssoc)
     {
-      List<string> existingPatches = [.. Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success)];
       if (fileRecords.TryGetValue(pair.Key, out FileAssociation[]? existing))
       {
         if (existing.Where((v) => v.AssociatedMod == name).FirstOrDefault(new FileAssociation() { AssociatedMod = "NoValidModFoundOrDefault" }).AssociatedMod != "NoValidModFoundOrDefault")
@@ -711,8 +718,8 @@ partial class ModManager
         {
           AssociatedMod = name,
           Files = [..pair.Value.SelectMany((v, index) => {
-              string[] set = GetFirstValidPatchSet(v, index, existingPatches);
-              existingPatches.AddRange(set);
+              string[] set = GetFirstValidPatchSet(v, index);
+              ModManager.existing.AddRange(set);
               for (int i = 0; i < v.Length; i++) {
                 EntryPoint.queue.CreateSymbolicLink(v[i], set[i]);
               }
@@ -728,8 +735,8 @@ partial class ModManager
         {
           AssociatedMod = name,
           Files = [..pair.Value.SelectMany((v, index) => {
-              string[] set = GetFirstValidPatchSet(v, index, existingPatches);
-              existingPatches.AddRange(set);
+              string[] set = GetFirstValidPatchSet(v, index);
+              ModManager.existing.AddRange(set);
               for (int i = 0; i < v.Length; i++) {
                 EntryPoint.queue.CreateSymbolicLink(v[i], set[i]);
               }
@@ -804,7 +811,6 @@ partial class ModManager
           }
         }
         Dictionary<string, FileAssociation> newAssociations = [];
-        List<string> existing = [.. Directory.EnumerateFiles(EntryPoint.HD2Path).Where((v) => FileNumRegex.Match(v).Success)];
         foreach (KeyValuePair<(int patch, FileAssociation associated), string[]> kvp in markedForMove)
         {
           if (newAssociations.TryGetValue(kvp.Key.associated.AssociatedMod, out FileAssociation assoc))
@@ -813,14 +819,14 @@ partial class ModManager
             string[] newF = [];
             foreach (string[] set in sets)
             {
-              string[] newFiles = GetFirstValidPatchSet(set, 0, existing);
+              string[] newFiles = GetFirstValidPatchSet(set, 0);
               for (int i = 0; i < set.Length; i++)
               {
                 EntryPoint.queue.Move(set[i], newFiles[i]);
                 existing.Add(newFiles[i]);
                 _ = existing.Remove(set[i]);
               }
-              EntryPoint.queue.WaitForEmpty();
+              //EntryPoint.queue.WaitForEmpty();
               newF = [.. newF, .. newFiles];
             }
             newAssociations[kvp.Key.associated.AssociatedMod] = assoc with { Files = [.. assoc.Files, .. newF] };
@@ -831,14 +837,14 @@ partial class ModManager
             string[] newF = [];
             foreach (string[] set in sets)
             {
-              string[] newFiles = GetFirstValidPatchSet(set, 0, existing);
+              string[] newFiles = GetFirstValidPatchSet(set, 0);
               for (int i = 0; i < set.Length; i++)
               {
                 EntryPoint.queue.Move(set[i], newFiles[i]);
                 existing.Add(newFiles[i]);
                 _ = existing.Remove(set[i]);
               }
-              EntryPoint.queue.WaitForEmpty();
+              //EntryPoint.queue.WaitForEmpty();
               newF = [.. newF, .. newFiles];
             }
             newAssociations[kvp.Key.associated.AssociatedMod] = new FileAssociation()

@@ -1,14 +1,8 @@
 using System.Runtime.InteropServices;
-using System.Threading.Channels;
 
 namespace yahd2mm;
 
-// every function here might as well be synchronous because windows is a fucking wack ass operating system and it keeps breaking
-// because some other program (only god knows how or why) is using one of the mod files
-class WindowsFilesystemQueue : IFilesystemOperations {
-  private readonly Channel<FilesystemOperation> operations = Channel.CreateUnbounded<FilesystemOperation>();
-  private readonly Lock _lock = new();
-  private readonly List<Task> _inProgressTasks = [];
+class WindowsFilesystemQueue : BaseFilesystemOperations {
 
   [DllImport("Kernel32.dll", CharSet = CharSet.Unicode)]
   private static extern bool CreateHardLink
@@ -18,37 +12,61 @@ class WindowsFilesystemQueue : IFilesystemOperations {
     IntPtr lpSecurityAttributes
   );
 
-  public void StartThread() {
+  public static async Task<bool> WaitForFileReadyAsync(string filePath, int timeoutSeconds = 10)
+  {
+    TimeSpan timeout = TimeSpan.FromSeconds(timeoutSeconds);
+    DateTime startTime = DateTime.Now;
+
+    while (DateTime.Now - startTime < timeout)
+    {
+      try
+      {
+        using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        return true;
+      }
+      catch (IOException)
+      {
+        await Task.Delay(100);
+      }
+    }
+
+    return false;
+  }
+
+  public override void StartThread() {
     Task.Run(async () =>
     {
       await foreach (var operation in operations.Reader.ReadAllAsync())
       {
-        var task = Task.Run(() =>
+        var task = Task.Run(async () =>
         {
           switch (operation.type)
           {
             case OperationType.Copy:
-              File.Copy(operation.targets[0], operation.modifyOutput?.Invoke(operation.targets[1]) ?? operation.targets[1]);
+              File.Copy(operation.targets[0], operation.targets[1]);
               break;
             case OperationType.CreateEmpty:
-              using (File.Create(operation.modifyOutput?.Invoke(operation.targets[0]) ?? operation.targets[0]))
+              using (File.Create(operation.targets[0]))
               { }
               break;
             case OperationType.Delete:
-              if (File.Exists(operation.targets[0]))
+              if (File.Exists(operation.targets[0])) {
+                await WaitForFileReadyAsync(operation.targets[0]);
                 File.Delete(operation.targets[0]);
+              }
               else if (Directory.Exists(operation.targets[0]))
                 Directory.Delete(operation.targets[0]);
               break;
             case OperationType.Move:
+              await WaitForFileReadyAsync(operation.targets[0]);
+              await WaitForFileReadyAsync(operation.targets[1]);
               File.Move(operation.targets[0], operation.targets[1]);
               break;
             case OperationType.CreateSymlink:
               if (EntryPoint.UseHardlinks) 
-                CreateHardLink(operation.modifyOutput?.Invoke(operation.targets[1]) ?? operation.targets[1], operation.targets[0], IntPtr.Zero);
+                CreateHardLink(operation.targets[1], operation.targets[0], IntPtr.Zero);
               else
-                File.CreateSymbolicLink(operation.modifyOutput?.Invoke(operation.targets[1]) ?? operation.targets[1], operation.targets[0]);
-              //File.Copy(operation.targets[0], operation.targets[1]);
+                File.CreateSymbolicLink(operation.targets[1], operation.targets[0]);
               break;
           }
         });
@@ -65,62 +83,5 @@ class WindowsFilesystemQueue : IFilesystemOperations {
         });
       }
     });
-  }
-
-  public void CreateSymbolicLink(string path, string target) {
-    operations.Writer.TryWrite(new()
-    {
-      type = OperationType.CreateSymlink,
-      targets = [path, target]
-    });
-    WaitForEmpty();
-  }
-
-  public void CreateEmpty(string path, Func<string, string>? modifyOutput = null) {
-    operations.Writer.TryWrite(new()
-    {
-      type = OperationType.CreateEmpty,
-      targets = [path],
-      modifyOutput = modifyOutput
-    });
-    WaitForEmpty();
-  }
-
-  public void Copy(string from, string to, Func<string, string>? modifyOutput = null) {
-    operations.Writer.TryWrite(new()
-    {
-      type = OperationType.Copy,
-      targets = [from, to],
-      modifyOutput = modifyOutput
-    });
-    WaitForEmpty();
-  }
-
-  public void Delete(string file) {
-    operations.Writer.TryWrite(new()
-    {
-      type = OperationType.Delete,
-      targets = [file]
-    });
-    WaitForEmpty();
-  }
-
-  public void Move(string from, string to) {
-    operations.Writer.TryWrite(new()
-    {
-      type = OperationType.Move,
-      targets = [from, to]
-    });
-    WaitForEmpty();
-  }
-
-  public void WaitForEmpty() {
-    if (_inProgressTasks.Count == 0) return;
-    List<Task> tasksToWaitFor;
-    lock (_lock)
-    {
-      tasksToWaitFor = [.. _inProgressTasks];
-    }
-    Task.WhenAll(tasksToWaitFor).Wait();
   }
 }
