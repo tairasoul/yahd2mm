@@ -12,7 +12,7 @@ class WindowsFilesystemQueue : BaseFilesystemOperations {
     IntPtr lpSecurityAttributes
   );
 
-  public static async Task<bool> WaitForFileReadyAsync(string filePath, int timeoutSeconds = 10)
+  private static async Task<bool> WaitForFileReadyAsync(string filePath, int timeoutSeconds = 10)
   {
     TimeSpan timeout = TimeSpan.FromSeconds(timeoutSeconds);
     DateTime startTime = DateTime.Now;
@@ -22,6 +22,9 @@ class WindowsFilesystemQueue : BaseFilesystemOperations {
       try
       {
         using FileStream fs = new(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        return true;
+      }
+      catch (FileNotFoundException) {
         return true;
       }
       catch (IOException)
