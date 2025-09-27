@@ -78,6 +78,7 @@ partial class ModManager
     ProcessMods();
     modAliases = new(this);
     priorities = [.. priorities.Where((v) => mods.Any((b) => b.Guid == v))];
+    modState = modState.Where((v) => mods.Any((b) => v.Key == b.Guid)).ToDictionary();
     SetupExistingList();
   }
 
@@ -922,18 +923,20 @@ partial class ModManager
     }
     foreach (KeyValuePair<string[], string> basename in basenames)
     {
-      foreach (string file in deleting[basename.Value])
-      {
-        if (File.Exists(file))
+      if (deleting.TryGetValue(basename.Value, out HashSet<string>? value))
+        foreach (string file in value)
         {
-          EntryPoint.queue.Delete(file);
+          if (File.Exists(file))
+          {
+            EntryPoint.queue.Delete(file);
+            existing.Remove(file);
+          }
         }
-      }
     }
     EntryPoint.queue.WaitForEmpty();
     foreach (string b in check)
     {
-      FileAssociation[] assoc = fileRecords[b];
+      if (!fileRecords.TryGetValue(b, out FileAssociation[] assoc)) return;
       assoc = [.. assoc.Where((v) => v.AssociatedMod != mod.Guid)];
       if (assoc.Length > 0)
       {
