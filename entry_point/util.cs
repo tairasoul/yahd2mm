@@ -1,3 +1,4 @@
+using Microsoft.Win32;
 using Newtonsoft.Json;
 using ValveKeyValue;
 
@@ -46,7 +47,7 @@ partial class EntryPoint {
     public string installdir { get; set; }
   }
 
-  public static string? FindSteamLibraryFoldersVdf()
+  private static string? FindSteamLibraryFoldersVdf()
   {
     string[] possiblePaths = new[]
     {
@@ -64,28 +65,39 @@ partial class EntryPoint {
     return null;
   }
 
+  private static string? GetSteamPathWindows() {
+    using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Valve\Steam")) {
+      if (key != null)
+        if (key.GetValue("InstallPath") is string installPath && Directory.Exists(installPath))
+          return installPath;
+    }
+
+    using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam")) {
+      if (key != null)
+        if (key.GetValue("InstallPath") is string installPath && Directory.Exists(installPath))
+          return installPath;
+    }
+
+    return null;
+  }
+
   private static void ScanForHD2Path() {
-    if (OperatingSystem.IsLinux()) {
-      string? libraryFoldersVDF = FindSteamLibraryFoldersVdf();
-      if (libraryFoldersVDF == null) return;
-      KVSerializer ser = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
-      Dictionary<string, LibraryFolder> folders = ser.Deserialize<Dictionary<string, LibraryFolder>>(File.OpenRead(libraryFoldersVDF));
-      foreach (LibraryFolder folder in folders.Values) {
-        if (folder.apps.Keys.Contains("553850")) {
-          string path = Path.Join(folder.path, "steamapps");
-          AppState state = ser.Deserialize<AppState>(File.OpenRead(Path.Join(path, "appmanifest_553850.acf")));
-          path = Path.Join(path, "common", state.installdir);
-          if (Directory.Exists(path)) {
-            path = Path.Join(path, "data");
-            if (IsValidHD2Directory(path)) {
-              HD2Path = path;
-            }
+    string? libraryFoldersVDF = OperatingSystem.IsLinux() ? FindSteamLibraryFoldersVdf() : GetSteamPathWindows();
+    if (libraryFoldersVDF == null) return;
+    KVSerializer ser = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
+    Dictionary<string, LibraryFolder> folders = ser.Deserialize<Dictionary<string, LibraryFolder>>(File.OpenRead(libraryFoldersVDF));
+    foreach (LibraryFolder folder in folders.Values) {
+      if (folder.apps.Keys.Contains("553850")) {
+        string path = Path.Join(folder.path, "steamapps");
+        AppState state = ser.Deserialize<AppState>(File.OpenRead(Path.Join(path, "appmanifest_553850.acf")));
+        path = Path.Join(path, "common", state.installdir);
+        if (Directory.Exists(path)) {
+          path = Path.Join(path, "data");
+          if (IsValidHD2Directory(path)) {
+            HD2Path = path;
           }
         }
       }
-    }
-    else {
-
     }
   }
 
