@@ -380,13 +380,13 @@ partial class EntryPoint
         if (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data)) {
           if (manager.nexusIds.Where((v) => v.Value.id == data.id).Count() > 1) {
             if (data.mainMod.Contains(SearchingString, StringComparison.OrdinalIgnoreCase)) {
-              int nameRatio = Fuzz.Ratio(data.mainMod, SearchingString);
-              int modRatio = Fuzz.Ratio(mod.Name, SearchingString);
+              int nameRatio = Fuzz.Ratio(data.mainMod.ToLower(), SearchingString.ToLower());
+              int modRatio = Fuzz.Ratio(mod.Name.ToLower(), SearchingString.ToLower());
               return nameRatio > modRatio ? nameRatio : modRatio;
             }
           }
         }
-        return Fuzz.Ratio(mod.Name, SearchingString);
+        return Fuzz.Ratio(mod.Name.ToLower(), SearchingString.ToLower());
       }
       mods = [.. mods
       .Where(mod => manager.modManager.modAliases[mod.Guid].Contains(SearchingString, StringComparison.OrdinalIgnoreCase) || (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data) && manager.nexusIds.Where((v) => v.Value.id == data.id).Count() > 1 && data.mainMod.Contains(SearchingString, StringComparison.OrdinalIgnoreCase)))
