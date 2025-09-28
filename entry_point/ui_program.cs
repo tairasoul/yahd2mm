@@ -370,78 +370,97 @@ partial class EntryPoint
     if (SearchingString != "" && SearchingString != string.Empty)
     {
       static int GetRatio(HD2Mod mod) {
-        if (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data)) {
-          if (manager.nexusIds.Where((v) => v.Value.id == data.id).Count() > 1) {
-            if (data.mainMod.Contains(SearchingString, StringComparison.OrdinalIgnoreCase)) {
-              int nameRatio = Fuzz.Ratio(data.mainMod.ToLower(), SearchingString.ToLower());
+        KeyValuePair<string, NexusData> entry = manager.nexusIds.FirstOrDefault(kvp => kvp.Value.associatedGuids.Contains(mod.Guid));
+        if (entry.Key != null)
+        {
+          NexusData data = entry.Value;
+          if (data.associatedGuids.Length > 1)
+          {
+            if (data.modName.Contains(SearchingString, StringComparison.OrdinalIgnoreCase))
+            {
+              int nameRatio = Fuzz.Ratio(data.modName.ToLower(), SearchingString.ToLower());
               int modRatio = Fuzz.Ratio(mod.Name.ToLower(), SearchingString.ToLower());
-              return nameRatio > modRatio ? nameRatio : modRatio;
+              return Math.Max(nameRatio, modRatio);
             }
           }
         }
         return Fuzz.Ratio(mod.Name.ToLower(), SearchingString.ToLower());
       }
       mods = [.. mods
-      .Where(mod => manager.modManager.modAliases[mod.Guid].Contains(SearchingString, StringComparison.OrdinalIgnoreCase) || (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data) && manager.nexusIds.Where((v) => v.Value.id == data.id).Count() > 1 && data.mainMod.Contains(SearchingString, StringComparison.OrdinalIgnoreCase)))
-      .Select(static mod => new
+      .Where(mod =>
       {
-        Mod = mod,
-        Score = GetRatio(mod),
-        IsPrefix = manager.modManager.modAliases[mod.Guid].StartsWith(SearchingString, StringComparison.OrdinalIgnoreCase),
-        Contains = manager.modManager.modAliases[mod.Guid].Contains(SearchingString, StringComparison.OrdinalIgnoreCase)
+        if (manager.modManager.modAliases[mod.Guid].Contains(SearchingString, StringComparison.OrdinalIgnoreCase))
+          return true;
+        if (manager.nexusReverse.TryGetValue(mod.Guid, out string? value)) {
+          NexusData resultData = manager.nexusIds[value];
+          return (resultData.associatedGuids.Length > 1 && resultData.modName.Contains(SearchingString, StringComparison.OrdinalIgnoreCase)) || manager.modManager.modAliases[mod.Guid].Contains(SearchingString, StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
+      })
+      .Select(mod => 
+      {
+        string alias = manager.modManager.modAliases[mod.Guid];
+        int score = GetRatio(mod);
+        bool isPrefix = alias.StartsWith(SearchingString, StringComparison.OrdinalIgnoreCase);
+        bool contains = alias.Contains(SearchingString, StringComparison.OrdinalIgnoreCase);
+        bool isFav = manager.modManager.favourites.Contains(mod.Guid);
+        return new
+        {
+          Mod = mod,
+          Score = score,
+          IsPrefix = isPrefix,
+          Contains = contains,
+          IsFavourite = isFav
+        };
       })
       .OrderByDescending(x => x.IsPrefix ? 2 : (x.Contains ? 1 : 0))
       .ThenByDescending(x => x.Score)
-      .ThenBy(mod => manager.modManager.modAliases[mod.Mod.Guid].Length).OrderByDescending((v) => manager.modManager.favourites.Contains(v.Mod.Guid)).Select((x) => x.Mod)];
+      .ThenBy(x => manager.modManager.modAliases[x.Mod.Guid].Length)
+      .ThenByDescending(x => x.IsFavourite)
+      .Select(x => x.Mod)];
     }
-    HDMModGroup[] grouped = [];
+    List<HDMModGroup> grouped = [];
     List<string> encountered = [];
     foreach (HD2Mod mod in mods) {
       if (encountered.Contains(mod.Guid)) continue;
-      if (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data)) {
-        int groupCount = manager.nexusIds.Where((v) => v.Value.id == data.id).Count();
-        if (groupCount > 1) {
+      if (manager.nexusReverse.TryGetValue(mod.Guid, out string? value))
+      {
+        NexusData data = manager.nexusIds[value];
+        if (data.associatedGuids.Length > 1)
+        {
+          HD2Mod[] groupMods = [.. mods.Where(m => data.associatedGuids.Contains(m.Guid))];
+
           HDMModGroup group = new()
           {
-            GroupName = data.mainMod,
+            GroupName = data.modName,
             IsGrouped = true,
-            mods = [.. mods.Where((v) => manager.nexusIds.TryGetValue(v.Guid, out NexusData d) && d.id == data.id)],
-            ModId = data.id
+            mods = groupMods,
+            ModId = value
           };
-          encountered.AddRange(group.mods.Select((v) => v.Guid));
-          grouped = [.. grouped, group];
-        }
-        else {
-          HDMModGroup group = new()
-          {
-            IsGrouped = false,
-            mods = [mod]
-          };
-          encountered.Add(mod.Guid);
-          grouped = [.. grouped, group];
+          encountered.AddRange(groupMods.Select(m => m.Guid));
+          grouped.Add(group);
+          continue;
         }
       }
-      else {
-        int lastNonGrouped = Array.IndexOf(grouped, Array.FindLast(grouped, (group) => !group.IsGrouped));
-        if (lastNonGrouped == -1) {
-          grouped = [new HDMModGroup() {
-            mods = [mod],
-            IsGrouped = false
-          }];
+      int lastNonGrouped = Array.IndexOf([.. grouped], Array.FindLast([.. grouped], (group) => !group.IsGrouped));
+      if (lastNonGrouped == -1) {
+        grouped.Add(new HDMModGroup() {
+          mods = [mod],
+          IsGrouped = false
+        });
+      }
+      else
+      {
+        if (lastNonGrouped == grouped.Count - 1) {
+          grouped[lastNonGrouped] = grouped[lastNonGrouped] with { mods = [.. grouped[lastNonGrouped].mods, mod] };
+          encountered.Add(mod.Guid);
         }
         else
         {
-          if (lastNonGrouped == grouped.Length - 1) {
-            grouped[lastNonGrouped] = grouped[lastNonGrouped] with { mods = [.. grouped[lastNonGrouped].mods, mod] };
-            encountered.Add(mod.Guid);
-          }
-          else
-          {
-            grouped = [..grouped, new HDMModGroup() {
-              mods = [mod],
-              IsGrouped = false
-            }];
-          }
+          grouped.Add(new HDMModGroup() {
+            mods = [mod],
+            IsGrouped = false
+          });
         }
       }
     }
@@ -812,7 +831,7 @@ partial class EntryPoint
       ImGui.Spacing();
       ImGui.SameLine();
       ImGui.BeginGroup();
-      if (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data)) {
+      if (manager.nexusReverse.TryGetValue(mod.Guid, out string reverse)) {
         ImGui.TextUnformatted($"Mod version: {manager.modManager.modState[mod.Guid].Version}");
         if (manager.modManager.modState[mod.Guid].InstalledAt != 0L) {
           ImGui.SameLine();
@@ -827,7 +846,7 @@ partial class EntryPoint
           ImGui.SameLine();
           if (ImGui.Button("Open mod on Nexus"))
           {
-            OpenFile($"https://www.nexusmods.com/helldivers2/mods/{data.id}");
+            OpenFile($"https://www.nexusmods.com/helldivers2/mods/{reverse}");
           }
         }
       } 

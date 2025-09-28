@@ -81,7 +81,7 @@ class DownloadManager {
 
   public DownloadManager(Manager manager) {
     client = new();
-    client.DefaultRequestHeaders.Add("User-Agent", "yahd2mm/0.5.0 .NET/9.0");
+    client.DefaultRequestHeaders.Add("User-Agent", "yahd2mm/0.5.1 .NET/9.0");
     client.DefaultRequestHeaders.Add("apikey", EntryPoint.APIKey);
     List<string> urlsToResume = [];
     foreach (ActiveDownload download in activeDownloads) {
@@ -121,15 +121,30 @@ class DownloadManager {
         string outputDir = Path.Join(ModManager.ModHolder, Path.GetFileNameWithoutExtension(output.Item1));
         if (Directory.Exists(outputDir))
         {
-          if (manager.nexusIds.TryGetValue(manager.modManager.mods.First((v) => v.FolderName == new DirectoryInfo(outputDir).Name).Guid, out NexusData nexus)) {
-            if (nexus.id == l.modId) {
+          string folderName = new DirectoryInfo(outputDir).Name;
+          HD2Mod? mod = manager.modManager.mods.Where(m => m.FolderName == folderName).Cast<HD2Mod?>().FirstOrDefault();
+          if (mod.HasValue)
+          {
+            string modGuid = mod.Value.Guid;
+            KeyValuePair<string, NexusData> entry = manager.nexusIds.FirstOrDefault(kvp => kvp.Value.associatedGuids.Contains(modGuid));
+            if (entry.Key != null)
+            {
+              if (entry.Key == l.modId)
+              {
+                Directory.Delete(outputDir, true);
+              }
+              else
+              {
+                outputDir = $"{outputDir} ({l.modId})";
+              }
+            }
+            else
+            {
               Directory.Delete(outputDir, true);
             }
-            else {
-              outputDir = $"{outputDir} ({l.modId})";
-            }
           }
-          else {
+          else
+          {
             Directory.Delete(outputDir, true);
           }
         }
@@ -157,10 +172,16 @@ class DownloadManager {
         }
         manager.modManager.modState[guid] = manager.modManager.modState[guid] with { Version = output.Item4, InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
         manager.modNames[output.Item2] = ModName;
-        manager.nexusIds[guid] = new() {
-          id = l.modId,
-          mainMod = progresses[output.Item2].mainModName
-        };
+        if (manager.nexusIds.TryGetValue(l.modId, out NexusData existingData)) {
+          manager.nexusIds[l.modId] = existingData with { associatedGuids = [.. existingData.associatedGuids, guid] };
+        }
+        else {
+          manager.nexusIds[l.modId] = new NexusData()
+          {
+            modName = progresses[output.Item2].mainModName,
+            associatedGuids = [guid]
+          };
+        }
         manager.modManager.SaveData();
         SaveData();
         HD2Mod[] mods = [ .. manager.modManager.mods ];
@@ -179,15 +200,30 @@ class DownloadManager {
         string outputDir = Path.Join(ModManager.ModHolder, Path.GetFileNameWithoutExtension(output.Item1));
         if (Directory.Exists(outputDir))
         {
-          if (manager.nexusIds.TryGetValue(manager.modManager.mods.First((v) => v.FolderName == new DirectoryInfo(outputDir).Name).Guid, out NexusData nexus)) {
-            if (nexus.id == l.modId) {
+          string folderName = new DirectoryInfo(outputDir).Name;
+          HD2Mod? mod = manager.modManager.mods.Where(m => m.FolderName == folderName).Cast<HD2Mod?>().FirstOrDefault();
+          if (mod.HasValue)
+          {
+            string modGuid = mod.Value.Guid;
+            KeyValuePair<string, NexusData> entry = manager.nexusIds.FirstOrDefault(kvp => kvp.Value.associatedGuids.Contains(modGuid));
+            if (entry.Key != null)
+            {
+              if (entry.Key == l.modId)
+              {
+                Directory.Delete(outputDir, true);
+              }
+              else
+              {
+                outputDir = $"{outputDir} ({l.modId})";
+              }
+            }
+            else
+            {
               Directory.Delete(outputDir, true);
             }
-            else {
-              outputDir = $"{outputDir} ({l.modId})";
-            }
           }
-          else {
+          else
+          {
             Directory.Delete(outputDir, true);
           }
         }
@@ -211,10 +247,16 @@ class DownloadManager {
         }
         manager.modManager.modState[guid] = manager.modManager.modState[guid] with { Version = output.Item4, InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
         manager.modNames[output.Item2] = ModName;
-        manager.nexusIds[guid] = new() {
-          id = l.modId,
-          mainMod = progresses[output.Item2].mainModName
-        };
+        if (manager.nexusIds.TryGetValue(l.modId, out NexusData existingData)) {
+          manager.nexusIds[l.modId] = existingData with { associatedGuids = [.. existingData.associatedGuids, guid] };
+        }
+        else {
+          manager.nexusIds[l.modId] = new NexusData()
+          {
+            modName = progresses[output.Item2].mainModName,
+            associatedGuids = [guid]
+          };
+        }
         manager.modManager.SaveData();
         SaveData();
         HD2Mod[] mods = [.. manager.modManager.mods];

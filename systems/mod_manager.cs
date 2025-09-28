@@ -65,6 +65,7 @@ partial class ModManager
   internal string[] priorities = File.Exists(PriorityList) ? JsonConvert.DeserializeObject<string[]>(File.ReadAllText(PriorityList)) ?? [] : [];
   internal AliasDictionary modAliases;
   internal Dictionary<string, ManifestChoices[]> processedChoices = [];
+  private Manager manager;
   private static readonly List<string> existing = [];
 
   private void SetupExistingList() {
@@ -73,8 +74,9 @@ partial class ModManager
     }
   }
 
-  public ModManager()
+  public ModManager(Manager manager)
   {
+    this.manager = manager;
     ProcessMods();
     modAliases = new(this);
     priorities = [.. priorities.Where((v) => mods.Any((b) => b.Guid == v))];
@@ -957,11 +959,20 @@ partial class ModManager
     _ = modState.Remove(name);
     HD2Mod mod = mods.First((m) => m.Guid == name);
     string ModDirectoryPath = Path.Join(ModHolder, mod.FolderName);
+    manager.nexusIds = manager.nexusIds.Select((v) => {
+      if (v.Value.associatedGuids.Contains(name)) {
+        KeyValuePair<string, NexusData> newPair = new(v.Key, v.Value with { associatedGuids = [..v.Value.associatedGuids.Where((b) => b != name)] });
+        return newPair;
+      }
+      return v;
+    }).ToDictionary();
+    manager.nexusReverse.Remove(name);
     Directory.Delete(ModDirectoryPath, true);
     _ = mods.Remove(mod);
     _ = modChoices.Remove(name);
     _ = aliases.Remove(name);
     priorities = [.. priorities.Where(v => v != name)];
+    manager.SaveData();
     SaveData();
   }
 

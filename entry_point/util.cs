@@ -1,5 +1,4 @@
 using Microsoft.Win32;
-using Newtonsoft.Json;
 using ValveKeyValue;
 
 namespace yahd2mm;
