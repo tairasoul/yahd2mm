@@ -772,10 +772,7 @@ partial class EntryPoint
       if (mod.ManifestV1.HasValue && mod.ManifestV1.Value.IconPath != null)
       {
         string path = Path.Join(ModManager.ModHolder, mod.FolderName, mod.ManifestV1.Value.IconPath);
-        bool succeeded = true;
-        succeeded = succeeded && DrawImage(path, new Vector2(100, 100));
-        succeeded = succeeded && DrawImageTooltip(path);
-        if (succeeded)
+        if (DrawImage(path, new Vector2(100, 100)) && DrawImageTooltip(path))
           ImGui.SameLine();
       }
       ImGui.BeginGroup();
@@ -918,10 +915,7 @@ partial class EntryPoint
       if (choice.IconPath != null)
       {
         string path = Path.Join(ModManager.ModHolder, mod.FolderName, choice.IconPath);
-        bool succeeded = true;
-        succeeded = succeeded && DrawImage(path, new Vector2(100, 100));
-        succeeded = succeeded && DrawImageTooltip(path);
-        if (succeeded)
+        if (DrawImage(path, new Vector2(100, 100)) && DrawImageTooltip(path))
           ImGui.SameLine();
       }
       ImGui.BeginGroup();
