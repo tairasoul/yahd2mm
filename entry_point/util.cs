@@ -6,7 +6,7 @@ namespace yahd2mm;
 partial class EntryPoint {
   private static bool IsAdministrator() {
     if (OperatingSystem.IsWindows()) {
-      return Environment.IsPrivilegedProcess || Path.GetPathRoot(File.ReadAllText(HD2PathFile).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+      return Environment.IsPrivilegedProcess || Path.GetPathRoot(HD2Path) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
     }
     return true;
   }
@@ -34,7 +34,8 @@ partial class EntryPoint {
     bool exists = Directory.Exists(path);
     bool foundBin = Directory.Exists(Path.Join(path, "..", "bin"));
     bool foundHD2 = File.Exists(Path.Join(path, "..", "bin", "helldivers2.exe"));
-    return exists && foundBin && foundHD2;
+    bool fileCountIsEnough = Directory.EnumerateFiles(path).Where((v) => !ModManager.FileNumRegex.Match(v).Success).Count() > 500;
+    return exists && foundBin && foundHD2 && fileCountIsEnough;
   }
 
   struct LibraryFolder {
@@ -48,13 +49,13 @@ partial class EntryPoint {
 
   private static string? FindSteamLibraryFoldersVdf()
   {
-    string[] possiblePaths = new[]
-    {
+    string[] possiblePaths =
+    [
       Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share", "Steam", "steamapps"),
       Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam", "steam", "steamapps"),
       Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam", "steamapps"),
       Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".var", "app", "com.valvesoftware.Steam", "data", "Steam", "steamapps")
-    };
+    ];
     foreach (string steamappsPath in possiblePaths)
     {
       string vdfPath = Path.Combine(steamappsPath, "libraryfolders.vdf");
@@ -86,7 +87,7 @@ partial class EntryPoint {
     KVSerializer ser = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
     Dictionary<string, LibraryFolder> folders = ser.Deserialize<Dictionary<string, LibraryFolder>>(File.OpenRead(libraryFoldersVDF));
     foreach (LibraryFolder folder in folders.Values) {
-      if (folder.apps.Keys.Contains("553850")) {
+      if (folder.apps.ContainsKey("553850")) {
         string path = Path.Join(folder.path, "steamapps");
         AppState state = ser.Deserialize<AppState>(File.OpenRead(Path.Join(path, "appmanifest_553850.acf")));
         path = Path.Join(path, "common", state.installdir);
