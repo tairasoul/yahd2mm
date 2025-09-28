@@ -2,14 +2,14 @@ using Semver;
 
 namespace yahd2mm;
 
-struct ArsenalSubOption {
+struct HDMSubOption {
   public string Name;
   public string Description;
   public string Image;
   public string[] Include;
 }
 
-struct ArsenalOption {
+struct HDMOption {
   public string Name;
   public string Description;
   public string Image;
@@ -17,7 +17,11 @@ struct ArsenalOption {
   public string[]? Include;
 }
 
-struct ArsenalManifest {
+struct BaseManifest {
+  public int Version;
+}
+
+struct HDMManifestV1 {
   public int Version;
   public string Guid;
   public string Name;
@@ -26,20 +30,20 @@ struct ArsenalManifest {
   public object[]? Options;
 }
 
-struct ArsenalMod {
+struct HD2Mod {
   public string Name;
   public readonly string Guid {
     get
     {
-      if (Manifest.HasValue)
+      if (ManifestV1.HasValue)
       {
-        return Manifest.Value.Guid;
+        return ManifestV1.Value.Guid;
       }
       return Name;
     }
   }
   public SemVersion Version;
   public string FolderName;
-  public ArsenalManifest? Manifest;
+  public HDMManifestV1? ManifestV1;
   public string[]? Files;
 }

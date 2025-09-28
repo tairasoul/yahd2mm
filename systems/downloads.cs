@@ -133,13 +133,13 @@ class DownloadManager {
         {
           Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
           Directory.Delete(outputDir);
-          ArsenalMod m = manager.modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          HD2Mod m = manager.modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
           ModName = m.Name;
           guid = m.Guid;
         }
         else
         {
-          ArsenalMod m = manager.modManager.ProcessMod(outputDir);
+          HD2Mod m = manager.modManager.ProcessMod(outputDir);
           ModName = m.Name;
           guid = m.Guid;
         }
@@ -151,7 +151,7 @@ class DownloadManager {
         };
         manager.modManager.SaveData();
         SaveData();
-        ArsenalMod[] mods = [ .. manager.modManager.mods ];
+        HD2Mod[] mods = [ .. manager.modManager.mods ];
         Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
         manager.modManager.mods = [.. mods];
         if (Config.cfg.ActivateOnInstall) {
@@ -175,13 +175,13 @@ class DownloadManager {
         {
           Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
           Directory.Delete(outputDir);
-          ArsenalMod m = manager.modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          HD2Mod m = manager.modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
           ModName = m.Name;
           guid = m.Guid;
         }
         else
         {
-          ArsenalMod m = manager.modManager.ProcessMod(outputDir);
+          HD2Mod m = manager.modManager.ProcessMod(outputDir);
           ModName = m.Name;
           guid = m.Guid;
         }
@@ -193,7 +193,7 @@ class DownloadManager {
         };
         manager.modManager.SaveData();
         SaveData();
-        ArsenalMod[] mods = [.. manager.modManager.mods];
+        HD2Mod[] mods = [.. manager.modManager.mods];
         Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
         manager.modManager.mods = [.. mods];
         if (Config.cfg.ActivateOnInstall) {

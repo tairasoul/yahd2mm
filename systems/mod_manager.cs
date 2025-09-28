@@ -47,8 +47,8 @@ class AliasDictionary(ModManager manager)
 
 partial class ModManager
 {
-  internal List<ArsenalMod> mods = [];
-  internal EventHandler<ArsenalMod> modAdded = static (_, __) => { };
+  internal List<HD2Mod> mods = [];
+  internal EventHandler<HD2Mod> modAdded = static (_, __) => { };
   internal static readonly string yahd2mm_basepath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yahd2mm");
   internal static readonly string ModHolder = Path.Join(yahd2mm_basepath, "mods");
   static readonly string Record = Path.Join(yahd2mm_basepath, "record.json");
@@ -438,10 +438,10 @@ partial class ModManager
     return result;
   }
 
-  private string[][] ProcessChoicesIntoPatchSets(ArsenalMod mod)
+  private string[][] ProcessChoicesIntoPatchSets(HD2Mod mod)
   {
     string BasePath = Path.Join(ModHolder, mod.FolderName);
-    ArsenalManifest manifest = mod.Manifest!.Value;
+    HDMManifestV1 manifest = mod.ManifestV1!.Value;
     List<string> filenames = [];
     if (manifest.Options != null && manifest.Options.Length > 0)
     {
@@ -496,7 +496,7 @@ partial class ModManager
     {
       if (opt is JObject jobj)
       {
-        ArsenalOption option = jobj.ToObject<ArsenalOption>();
+        HDMOption option = jobj.ToObject<HDMOption>();
         foreach (string include in option.Include!)
         {
           if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include))
@@ -520,14 +520,14 @@ partial class ModManager
     return [.. files.Where(static (v) => FileNumRegex.Match(v).Success)];
   }
 
-  private static bool IsIncludeRedundant(ArsenalMod mod, string include, List<string> encountered)
+  private static bool IsIncludeRedundant(HD2Mod mod, string include, List<string> encountered)
   {
     string path = Path.Join(ModHolder, mod.FolderName, include);
     string[] FileAndDirectoryNames = [.. Directory.EnumerateFiles(path).Select(static (v) => new FileInfo(v).Name), .. Directory.EnumerateDirectories(path).Select(static (v) => new DirectoryInfo(v).Name)];
     return encountered.All(FileAndDirectoryNames.Contains);
   }
 
-  private static string[] ProcessChoices(ArsenalMod mod, string[] chosen, object[] options)
+  private static string[] ProcessChoices(HD2Mod mod, string[] chosen, object[] options)
   {
     List<string> files = [];
     List<string> EncounteredIncludes = [];
@@ -535,7 +535,7 @@ partial class ModManager
     {
       if (opt is JObject jobj)
       {
-        ArsenalOption option = jobj.ToObject<ArsenalOption>();
+        HDMOption option = jobj.ToObject<HDMOption>();
         if (chosen.Contains(option.Name))
         {
           if (option.SubOptions != null)
@@ -604,7 +604,7 @@ partial class ModManager
     {
       if (opt is JObject jobj)
       {
-        ArsenalOption option = jobj.ToObject<ArsenalOption>();
+        HDMOption option = jobj.ToObject<HDMOption>();
         if (chosen.Contains(currentPath + "/" + option.Name))
         {
           files.AddRange(option.Include!);
@@ -683,8 +683,8 @@ partial class ModManager
       return;
     }
 
-    ArsenalMod mod = mods.First((m) => m.Guid == name);
-    string[][] filenames = mod.Manifest.HasValue ? ProcessChoicesIntoPatchSets(mod) : ProcessFilenamesIntoPatchSets([.. mod.Files!]);
+    HD2Mod mod = mods.First((m) => m.Guid == name);
+    string[][] filenames = mod.ManifestV1.HasValue ? ProcessChoicesIntoPatchSets(mod) : ProcessFilenamesIntoPatchSets([.. mod.Files!]);
     Dictionary<string[], string> basenames = [];
     foreach (string[] set in filenames)
     {
@@ -876,8 +876,8 @@ partial class ModManager
       return;
     }
 
-    ArsenalMod mod = mods.First((m) => m.Guid == name);
-    string[][] filenames = mod.Manifest.HasValue ? ProcessChoicesIntoPatchSets(mod) : ProcessFilenamesIntoPatchSets([.. mod.Files!]);
+    HD2Mod mod = mods.First((m) => m.Guid == name);
+    string[][] filenames = mod.ManifestV1.HasValue ? ProcessChoicesIntoPatchSets(mod) : ProcessFilenamesIntoPatchSets([.. mod.Files!]);
     Dictionary<string[], string> basenames = [];
     foreach (string[] set in filenames)
     {
@@ -955,7 +955,7 @@ partial class ModManager
   {
     DisableMod(name);
     _ = modState.Remove(name);
-    ArsenalMod mod = mods.First((m) => m.Guid == name);
+    HD2Mod mod = mods.First((m) => m.Guid == name);
     string ModDirectoryPath = Path.Join(ModHolder, mod.FolderName);
     Directory.Delete(ModDirectoryPath, true);
     _ = mods.Remove(mod);
@@ -978,17 +978,17 @@ partial class ModManager
       _ = ProcessMod(dir);
     }
 
-    ArsenalMod[] arr = [.. mods];
+    HD2Mod[] arr = [.. mods];
     Array.Sort(arr, static (x, y) => string.Compare(x.Name, y.Name));
     mods = [.. arr];
   }
 
-  internal ArsenalMod ProcessMod(string path)
+  internal HD2Mod ProcessMod(string path)
   {
     bool hasManifest = File.Exists(Path.Join(path, "manifest.json"));
     if (hasManifest)
     {
-      ArsenalMod mod = ModWithManifest(path);
+      HD2Mod mod = ModWithManifest(path);
       mods = [.. mods.Where((v) => v.Guid != mod.Guid)];
       mods.Add(mod);
       modAdded.Invoke(null, mod);
@@ -1000,7 +1000,7 @@ partial class ModManager
     }
     else
     {
-      ArsenalMod mod = ModWithoutManifest(path);
+      HD2Mod mod = ModWithoutManifest(path);
       mods = [.. mods.Where((v) => v.Guid != mod.Guid)];
       mods.Add(mod);
       modAdded.Invoke(null, mod);
@@ -1025,7 +1025,7 @@ partial class ModManager
     return string.Empty;
   }
 
-  private static ManifestChoices[] GenerateDefaultManifestChoices(ArsenalManifest mod)
+  private static ManifestChoices[] GenerateDefaultManifestChoices(HDMManifestV1 mod)
   {
     List<ManifestChoices> choices = [];
     if (mod.Options == null || mod.Options.Length == 0)
@@ -1037,7 +1037,7 @@ partial class ModManager
     {
       if (opt is JObject jobj)
       {
-        ArsenalOption option = jobj.ToObject<ArsenalOption>();
+        HDMOption option = jobj.ToObject<HDMOption>();
         ManifestChoices choice = new()
         {
           Name = option.Name,
@@ -1099,7 +1099,7 @@ partial class ModManager
     {
       if (opt is JObject jobj)
       {
-        ArsenalSubOption option = jobj.ToObject<ArsenalSubOption>();
+        HDMSubOption option = jobj.ToObject<HDMSubOption>();
         ManifestChoices choice = new()
         {
           Chosen = false,
@@ -1124,9 +1124,10 @@ partial class ModManager
     return [.. choices];
   }
 
-  private ArsenalMod ModWithManifest(string path)
+  private HD2Mod ModWithManifest(string path)
   {
-    ArsenalManifest manifest = JsonConvert.DeserializeObject<ArsenalManifest>(File.ReadAllText(Path.Join(path, "manifest.json")));
+    JObject baseObject = JObject.Parse(File.ReadAllText(Path.Join(path, "manifest.json")));
+    HDMManifestV1 manifest = baseObject.ToObject<HDMManifestV1>();
     if (!modState.TryGetValue(manifest.Guid, out ModJson state))
     {
       state = new()
@@ -1154,9 +1155,9 @@ partial class ModManager
         files = [.. GetFolderRecursively(path).Where(static (v) => FileNumRegex.Match(v).Success)];
       }
     }
-    ArsenalMod mod = new()
+    HD2Mod mod = new()
     {
-      Manifest = manifest,
+      ManifestV1 = manifest,
       Version = SemVersion.Parse(state.Version, SemVersionStyles.Any),
       Name = manifest.Name,
       FolderName = GetName(path),
@@ -1165,7 +1166,7 @@ partial class ModManager
     return mod;
   }
 
-  private ArsenalMod ModWithoutManifest(string path)
+  private HD2Mod ModWithoutManifest(string path)
   {
     string name = GetName(path);
     if (!modState.TryGetValue(name, out ModJson state))
@@ -1177,7 +1178,7 @@ partial class ModManager
       };
       modState[name] = state;
     };
-    ArsenalMod mod = new()
+    HD2Mod mod = new()
     {
       Version = SemVersion.Parse(state.Version, SemVersionStyles.Any),
       Files = [.. Directory.EnumerateFiles(path).Where(static (v) => FileNumRegex.Match(v).Success)],

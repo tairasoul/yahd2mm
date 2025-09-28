@@ -40,7 +40,7 @@ class Manager {
       DirectoryInfo info = new(file);
       Directory.Move(file, Path.Join(ModManager.ModHolder, info.Name));
       modManager.ProcessMod(Path.Join(ModManager.ModHolder, info.Name));
-      ArsenalMod[] mods = [.. modManager.mods ];
+      HD2Mod[] mods = [.. modManager.mods ];
       Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
       modManager.mods = [.. mods];
       return;
@@ -64,16 +64,16 @@ class Manager {
       {
         Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
         Directory.Delete(outputDir);
-        ArsenalMod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+        HD2Mod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
         guid = m.Guid;
       }
       else
       {
-        ArsenalMod m = modManager.ProcessMod(outputDir);
+        HD2Mod m = modManager.ProcessMod(outputDir);
         guid = m.Guid;
       }
       modManager.modState[guid] = modManager.modState[guid] with { InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
-      ArsenalMod[] mods = [ .. modManager.mods ];
+      HD2Mod[] mods = [ .. modManager.mods ];
       Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
       modManager.mods = [.. mods];
       if (Config.cfg.ActivateOnInstall) {
@@ -97,17 +97,17 @@ class Manager {
       {
         Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
         Directory.Delete(outputDir);
-        ArsenalMod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+        HD2Mod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
 
         guid = m.Guid;
       }
       else
       {
-        ArsenalMod m = modManager.ProcessMod(outputDir);
+        HD2Mod m = modManager.ProcessMod(outputDir);
         guid = m.Guid;
       }
       modManager.modState[guid] = modManager.modState[guid] with { InstalledAt = new DateTimeOffset(DateTime.Now).ToUnixTimeMilliseconds() };
-      ArsenalMod[] mods = [ .. modManager.mods ];
+      HD2Mod[] mods = [ .. modManager.mods ];
       Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
       modManager.mods = [.. mods];
       if (Config.cfg.ActivateOnInstall) {
@@ -148,13 +148,13 @@ class Manager {
         {
           Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
           Directory.Delete(outputDir);
-          ArsenalMod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          HD2Mod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
           ModName = m.Name;
           guid = m.Guid;
         }
         else
         {
-          ArsenalMod m = modManager.ProcessMod(outputDir);
+          HD2Mod m = modManager.ProcessMod(outputDir);
           ModName = m.Name;
           guid = m.Guid;
         }
@@ -166,7 +166,7 @@ class Manager {
         };
         modManager.SaveData();
         SaveData();
-        ArsenalMod[] mods = [ .. modManager.mods ];
+        HD2Mod[] mods = [ .. modManager.mods ];
         Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
         modManager.mods = [.. mods];
         if (Config.cfg.ActivateOnInstall) {
@@ -190,13 +190,13 @@ class Manager {
         {
           Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
           Directory.Delete(outputDir);
-          ArsenalMod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          HD2Mod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
           ModName = m.Name;
           guid = m.Guid;
         }
         else
         {
-          ArsenalMod m = modManager.ProcessMod(outputDir);
+          HD2Mod m = modManager.ProcessMod(outputDir);
           ModName = m.Name;
           guid = m.Guid;
         }
@@ -208,7 +208,7 @@ class Manager {
         };
         modManager.SaveData();
         SaveData();
-        ArsenalMod[] mods = [.. modManager.mods];
+        HD2Mod[] mods = [.. modManager.mods];
         Array.Sort(mods, static (x, y) => string.Compare(x.Name, y.Name));
         modManager.mods = [.. mods];
         if (Config.cfg.ActivateOnInstall) {

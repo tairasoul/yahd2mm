@@ -15,7 +15,7 @@ namespace yahd2mm;
 
 struct ArsenalModGroup {
   public bool IsGrouped;
-  public ArsenalMod[] mods;
+  public HD2Mod[] mods;
   public string GroupName;
   public string ModId;
 }
@@ -327,7 +327,7 @@ partial class EntryPoint
   {
     if (ImGui.Button("Enable all mods"))
     {
-      foreach (ArsenalMod mod in manager.modManager.mods.ToList())
+      foreach (HD2Mod mod in manager.modManager.mods.ToList())
       {
         manager.modManager.EnableMod(mod.Guid);
       }
@@ -336,9 +336,9 @@ partial class EntryPoint
     ImGui.SameLine();
     if (ImGui.Button("Disable all mods"))
     {
-      List<ArsenalMod> reversed = [.. manager.modManager.mods];
+      List<HD2Mod> reversed = [.. manager.modManager.mods];
       reversed.Reverse();
-      foreach (ArsenalMod mod in reversed)
+      foreach (HD2Mod mod in reversed)
       {
         manager.modManager.DisableMod(mod.Guid);
       }
@@ -347,8 +347,8 @@ partial class EntryPoint
     ImGui.SameLine();
     if (ImGui.Button("Re-deploy"))
     {
-      List<ArsenalMod> enabled = [];
-      foreach (ArsenalMod mod in manager.modManager.mods.ToList())
+      List<HD2Mod> enabled = [];
+      foreach (HD2Mod mod in manager.modManager.mods.ToList())
       {
         if (manager.modManager.modState[mod.Guid].Enabled) {
           enabled.Add(mod);
@@ -359,7 +359,7 @@ partial class EntryPoint
         catch (Exception)
         {}
       }
-      foreach (ArsenalMod mod in enabled) {
+      foreach (HD2Mod mod in enabled) {
         manager.modManager.EnableMod(mod.Guid);
       }
       queue.WaitForEmpty();
@@ -374,12 +374,12 @@ partial class EntryPoint
     ImGui.InputText("Search", ref SearchingString, 80, ImGuiInputTextFlags.EscapeClearsAll | ImGuiInputTextFlags.AlwaysOverwrite);
     ImGui.TextUnformatted("Priority list is ignored when enabling/disabling mods here, apply in Priorities!");
     ImGui.BeginChild("ScrollableModlist", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders, ImGuiWindowFlags.AlwaysVerticalScrollbar);
-    ArsenalMod[] mods = [.. manager.modManager.mods];
+    HD2Mod[] mods = [.. manager.modManager.mods];
     Array.Sort(mods, (x, y) => string.Compare(manager.modManager.modAliases[x.Guid], manager.modManager.modAliases[y.Guid]));
     mods = [.. mods.OrderByDescending((v) => manager.modManager.favourites.Contains(v.Guid))];
     if (SearchingString != "" && SearchingString != string.Empty)
     {
-      static int GetRatio(ArsenalMod mod) {
+      static int GetRatio(HD2Mod mod) {
         if (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data)) {
           if (manager.nexusIds.Where((v) => v.Value.id == data.id).Count() > 1) {
             if (data.mainMod.Contains(SearchingString, StringComparison.OrdinalIgnoreCase)) {
@@ -406,7 +406,7 @@ partial class EntryPoint
     }
     ArsenalModGroup[] grouped = [];
     List<string> encountered = [];
-    foreach (ArsenalMod mod in mods) {
+    foreach (HD2Mod mod in mods) {
       if (encountered.Contains(mod.Guid)) continue;
       if (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data)) {
         int groupCount = manager.nexusIds.Where((v) => v.Value.id == data.id).Count();
@@ -470,14 +470,14 @@ partial class EntryPoint
               System.Diagnostics.Process.Start("explorer.exe", $"\"https://www.nexusmods.com/helldivers2/mods/{group.ModId}\"");
             }
           }
-          foreach (ArsenalMod mod in group.mods) {
+          foreach (HD2Mod mod in group.mods) {
             DoMod(mod, false);
           }
           ImGui.Unindent();
         }
       }
       else {
-        foreach (ArsenalMod mod in group.mods) {
+        foreach (HD2Mod mod in group.mods) {
           DoMod(mod, true);
         }
       }
@@ -516,7 +516,7 @@ partial class EntryPoint
           }
         }
         if (ImGui.Button("Add active mods")) {
-          foreach (ArsenalMod amod in manager.modManager.mods.ToList())
+          foreach (HD2Mod amod in manager.modManager.mods.ToList())
           {
             if (manager.modManager.modState.TryGetValue(amod.Guid, out ModJson json))
               if (json.Enabled)
@@ -545,7 +545,7 @@ partial class EntryPoint
           {
             manager.modpackManager.RemoveModFromModpack(mod.guid, packs.Key);
           }
-          foreach (ArsenalMod amod in manager.modManager.mods.ToList())
+          foreach (HD2Mod amod in manager.modManager.mods.ToList())
           {
             if (manager.modManager.modState.TryGetValue(amod.Guid, out ModJson json))
               if (json.Enabled)
@@ -610,7 +610,7 @@ partial class EntryPoint
       {
         string pack = manager.modpackManager.CreateModpack(ModpackName);
         ModpackName = string.Empty;
-        foreach (ArsenalMod mod in manager.modManager.mods.ToList())
+        foreach (HD2Mod mod in manager.modManager.mods.ToList())
         {
           if (manager.modManager.modState.TryGetValue(mod.Guid, out ModJson json))
             if (json.Enabled)
@@ -701,7 +701,7 @@ partial class EntryPoint
 
   private static string modRenamed = string.Empty;
 
-  private static void RenameMod(ArsenalMod mod)
+  private static void RenameMod(HD2Mod mod)
   {
     ImGui.TextUnformatted($"Default name: {mod.Name}");
     ImGui.TextUnformatted($"Current name: {manager.modManager.modAliases[mod.Guid]}");
@@ -724,7 +724,7 @@ partial class EntryPoint
   private static readonly Dictionary<string, IntPtr> Textures = [];
   private static readonly Dictionary<string, Vector2> TextureDimensions = [];
 
-  private static void DoMod(ArsenalMod mod, bool doNexusButton) {
+  private static void DoMod(HD2Mod mod, bool doNexusButton) {
     bool ienabled = manager.modManager.modState[mod.Guid].Enabled;
     bool favourited = manager.modManager.favourites.Contains(mod.Guid);
     bool headerOpen = ImGui.CollapsingHeader((ienabled ? "(X) " : "( ) ") + manager.modManager.modAliases[mod.Guid] + (favourited ? " (Favourited)" : "") + "###" + mod.Guid);
@@ -732,7 +732,7 @@ partial class EntryPoint
       if (ImGui.BeginMenu("Add to Modpack")) {
         foreach (KeyValuePair<string, Modpack> pack in manager.modpackManager.modpacks) {
           if (ImGui.Button(pack.Value.Name)) {
-            if (mod.Manifest.HasValue && mod.Manifest.Value.Options != null)
+            if (mod.ManifestV1.HasValue && mod.ManifestV1.Value.Options != null)
               manager.modpackManager.AddModToModpack(mod.Name, mod.Guid, pack.Key, ModManager.ChoicesToPaths(manager.modManager.processedChoices[mod.Guid]));
             else
               manager.modpackManager.AddModToModpack(mod.Name, mod.Guid, pack.Key, null);
@@ -760,18 +760,18 @@ partial class EntryPoint
       }
       ImGui.EndPopup();
     }
-    if (mod.Manifest.HasValue && mod.Manifest.Value.IconPath != null)
+    if (mod.ManifestV1.HasValue && mod.ManifestV1.Value.IconPath != null)
     {
-      string path = Path.Join(ModManager.ModHolder, mod.FolderName, mod.Manifest.Value.IconPath);
+      string path = Path.Join(ModManager.ModHolder, mod.FolderName, mod.ManifestV1.Value.IconPath);
       DrawImageTooltip(path, ImGuiHoveredFlags.DelayNormal | ImGuiHoveredFlags.Stationary);
     }
     if (headerOpen) {
       ImGui.Indent();
       ImGui.PushID(mod.Guid);
       ImGui.PushID(mod.GetHashCode());
-      if (mod.Manifest.HasValue && mod.Manifest.Value.IconPath != null)
+      if (mod.ManifestV1.HasValue && mod.ManifestV1.Value.IconPath != null)
       {
-        string path = Path.Join(ModManager.ModHolder, mod.FolderName, mod.Manifest.Value.IconPath);
+        string path = Path.Join(ModManager.ModHolder, mod.FolderName, mod.ManifestV1.Value.IconPath);
         bool succeeded = true;
         succeeded = succeeded && DrawImage(path, new Vector2(100, 100));
         succeeded = succeeded && DrawImageTooltip(path);
@@ -818,7 +818,7 @@ partial class EntryPoint
       if (ImGui.BeginPopup("ModpackAddition")) {
         foreach (KeyValuePair<string, Modpack> pack in manager.modpackManager.modpacks) {
           if (ImGui.Button(pack.Value.Name)) {
-            if (mod.Manifest.HasValue && mod.Manifest.Value.Options != null)
+            if (mod.ManifestV1.HasValue && mod.ManifestV1.Value.Options != null)
               manager.modpackManager.AddModToModpack(mod.Name, mod.Guid, pack.Key, ModManager.ChoicesToPaths(manager.modManager.processedChoices[mod.Guid]));
             else
               manager.modpackManager.AddModToModpack(mod.Name, mod.Guid, pack.Key, null);
@@ -858,12 +858,12 @@ partial class EntryPoint
           }
         }
       } 
-      if (mod.Manifest.HasValue) {
-        if (mod.Manifest.Value.Description != null) {
-          ImGui.TextUnformatted(mod.Manifest.Value.Description);
+      if (mod.ManifestV1.HasValue) {
+        if (mod.ManifestV1.Value.Description != null) {
+          ImGui.TextUnformatted(mod.ManifestV1.Value.Description);
         }
-        if (mod.Manifest.Value.Options != null && mod.Manifest.Value.Options.Length > 0) {
-          if (mod.Manifest.Value.Description != null)
+        if (mod.ManifestV1.Value.Options != null && mod.ManifestV1.Value.Options.Length > 0) {
+          if (mod.ManifestV1.Value.Description != null)
             ImGui.Separator();
           if (ImGui.TreeNodeEx("Options", ImGuiTreeNodeFlags.SpanAvailWidth))
           {
@@ -880,9 +880,9 @@ partial class EntryPoint
     }
   }
 
-  private static void DrawChoices(ArsenalMod mod) {
-    if (!mod.Manifest.HasValue) return;
-    ArsenalManifest manifest = mod.Manifest.Value;
+  private static void DrawChoices(HD2Mod mod) {
+    if (!mod.ManifestV1.HasValue) return;
+    HDMManifestV1 manifest = mod.ManifestV1.Value;
     if (manifest.Options == null) return;
     ManifestChoices[] choices = manager.modManager.processedChoices[mod.Guid];
     float remaining = ImGui.GetContentRegionAvail().X;
