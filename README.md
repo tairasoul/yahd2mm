@@ -99,7 +99,7 @@ also works with already-extracted mod folders, will move them instead (because c
 
 ## todo
 
-properly deploy with priorities when enabling/disabling in mod list
+properly deploy with priorities when enabling/disabling in mod list (might not be feasible without a more advanced filesystem abstraction)
 
 installer and updater
 
