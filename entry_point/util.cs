@@ -46,9 +46,28 @@ partial class EntryPoint {
     public string installdir { get; set; }
   }
 
+  public static string? FindSteamLibraryFoldersVdf()
+  {
+    string[] possiblePaths = new[]
+    {
+      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share", "Steam", "steamapps"),
+      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam", "steam", "steamapps"),
+      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam", "steamapps"),
+      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".var", "app", "com.valvesoftware.Steam", "data", "Steam", "steamapps")
+    };
+    foreach (string steamappsPath in possiblePaths)
+    {
+      string vdfPath = Path.Combine(steamappsPath, "libraryfolders.vdf");
+      if (File.Exists(vdfPath))
+        return vdfPath;
+    }
+    return null;
+  }
+
   private static void ScanForHD2Path() {
     if (OperatingSystem.IsLinux()) {
-      string libraryFoldersVDF = $"{Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)}/.local/share/Steam/steamapps/libraryfolders.vdf";
+      string? libraryFoldersVDF = FindSteamLibraryFoldersVdf();
+      if (libraryFoldersVDF == null) return;
       KVSerializer ser = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
       Dictionary<string, LibraryFolder> folders = ser.Deserialize<Dictionary<string, LibraryFolder>>(File.OpenRead(libraryFoldersVDF));
       foreach (LibraryFolder folder in folders.Values) {
