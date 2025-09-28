@@ -125,14 +125,12 @@ partial class EntryPoint
         ImGui.EndTabItem();
       }
       bool p_open = true;
+      // wack little workaround because imgui.net (and assumedly by extension imgui) doesnt let you forcibly select something
       if (SwitchToDownloads)
       {
         if (ImGui.BeginTabItem("Downloads", ref p_open, ImGuiTabItemFlags.SetSelected))
         {
-          if (SwitchToDownloads)
-          {
-            SwitchToDownloads = false;
-          }
+          SwitchToDownloads = false;
           DoDownloads();
           ImGui.EndTabItem();
         }
@@ -140,10 +138,6 @@ partial class EntryPoint
       else {
         if (ImGui.BeginTabItem("Downloads"))
         {
-          if (SwitchToDownloads)
-          {
-            SwitchToDownloads = false;
-          }
           DoDownloads();
           ImGui.EndTabItem();
         }
@@ -216,6 +210,9 @@ partial class EntryPoint
       Config.SaveConfig();
     }
     if (ImGui.Checkbox("Activate all options on newly installed mods", ref data.ActivateOptionsOnInstall)) {
+      Config.SaveConfig();
+    }
+    if (ImGui.Checkbox("Open downloads tab when starting new download", ref data.OpenDownloadsOnNew)) {
       Config.SaveConfig();
     }
   }

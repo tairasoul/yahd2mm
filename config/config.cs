@@ -5,6 +5,7 @@ namespace yahd2mm;
 class ConfigData {
   public bool ActivateOptionsOnInstall;
   public bool ActivateOnInstall;
+  public bool OpenDownloadsOnNew;
 }
 
 class Config {
