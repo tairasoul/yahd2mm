@@ -120,7 +120,19 @@ class DownloadManager {
         using IReader reader = ReaderFactory.Open(stream);
         string outputDir = Path.Join(ModManager.ModHolder, Path.GetFileNameWithoutExtension(output.Item1));
         if (Directory.Exists(outputDir))
-          Directory.Delete(outputDir, true);
+        {
+          if (manager.nexusIds.TryGetValue(manager.modManager.mods.First((v) => v.FolderName == new DirectoryInfo(outputDir).Name).Guid, out NexusData nexus)) {
+            if (nexus.id == l.modId) {
+              Directory.Delete(outputDir, true);
+            }
+            else {
+              outputDir = $"{outputDir} ({l.modId})";
+            }
+          }
+          else {
+            Directory.Delete(outputDir, true);
+          }
+        }
         Directory.CreateDirectory(outputDir);
         reader.WriteAllToDirectory(outputDir, new()
         {
@@ -166,7 +178,19 @@ class DownloadManager {
         using SevenZipArchive archive = new(stream);
         string outputDir = Path.Join(ModManager.ModHolder, Path.GetFileNameWithoutExtension(output.Item1));
         if (Directory.Exists(outputDir))
-          Directory.Delete(outputDir, true);
+        {
+          if (manager.nexusIds.TryGetValue(manager.modManager.mods.First((v) => v.FolderName == new DirectoryInfo(outputDir).Name).Guid, out NexusData nexus)) {
+            if (nexus.id == l.modId) {
+              Directory.Delete(outputDir, true);
+            }
+            else {
+              outputDir = $"{outputDir} ({l.modId})";
+            }
+          }
+          else {
+            Directory.Delete(outputDir, true);
+          }
+        }
         Directory.CreateDirectory(outputDir);
         archive.ExtractToDirectory(outputDir);
         string[] files = [.. Directory.EnumerateFiles(outputDir), .. Directory.EnumerateDirectories(outputDir)];
