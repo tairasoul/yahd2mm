@@ -959,13 +959,18 @@ partial class ModManager
     _ = modState.Remove(name);
     HD2Mod mod = mods.First((m) => m.Guid == name);
     string ModDirectoryPath = Path.Join(ModHolder, mod.FolderName);
+    List<string> removedIds = [];
     manager.nexusIds = manager.nexusIds.Select((v) => {
       if (v.Value.associatedGuids.Contains(name)) {
         KeyValuePair<string, NexusData> newPair = new(v.Key, v.Value with { associatedGuids = [..v.Value.associatedGuids.Where((b) => b != name)] });
+        if (newPair.Value.associatedGuids.Length == 0) removedIds.Add(newPair.Key);
         return newPair;
       }
       return v;
     }).ToDictionary();
+    foreach (string id in removedIds) {
+      manager.nexusIds.Remove(id);
+    }
     manager.nexusReverse.Remove(name);
     Directory.Delete(ModDirectoryPath, true);
     _ = mods.Remove(mod);
