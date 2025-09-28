@@ -13,7 +13,7 @@ using SixLabors.ImageSharp.PixelFormats;
 
 namespace yahd2mm;
 
-struct ArsenalModGroup {
+struct HDMModGroup {
   public bool IsGrouped;
   public HD2Mod[] mods;
   public string GroupName;
@@ -401,14 +401,14 @@ partial class EntryPoint
       .ThenByDescending(x => x.Score)
       .ThenBy(mod => manager.modManager.modAliases[mod.Mod.Guid].Length).OrderByDescending((v) => manager.modManager.favourites.Contains(v.Mod.Guid)).Select((x) => x.Mod)];
     }
-    ArsenalModGroup[] grouped = [];
+    HDMModGroup[] grouped = [];
     List<string> encountered = [];
     foreach (HD2Mod mod in mods) {
       if (encountered.Contains(mod.Guid)) continue;
       if (manager.nexusIds.TryGetValue(mod.Guid, out NexusData data)) {
         int groupCount = manager.nexusIds.Where((v) => v.Value.id == data.id).Count();
         if (groupCount > 1) {
-          ArsenalModGroup group = new()
+          HDMModGroup group = new()
           {
             GroupName = data.mainMod,
             IsGrouped = true,
@@ -419,7 +419,7 @@ partial class EntryPoint
           grouped = [.. grouped, group];
         }
         else {
-          ArsenalModGroup group = new()
+          HDMModGroup group = new()
           {
             IsGrouped = false,
             mods = [mod]
@@ -431,7 +431,7 @@ partial class EntryPoint
       else {
         int lastNonGrouped = Array.IndexOf(grouped, Array.FindLast(grouped, (group) => !group.IsGrouped));
         if (lastNonGrouped == -1) {
-          grouped = [new ArsenalModGroup() {
+          grouped = [new HDMModGroup() {
             mods = [mod],
             IsGrouped = false
           }];
@@ -444,7 +444,7 @@ partial class EntryPoint
           }
           else
           {
-            grouped = [..grouped, new ArsenalModGroup() {
+            grouped = [..grouped, new HDMModGroup() {
               mods = [mod],
               IsGrouped = false
             }];
@@ -452,7 +452,7 @@ partial class EntryPoint
         }
       }
     }
-    foreach (ArsenalModGroup group in grouped) {
+    foreach (HDMModGroup group in grouped) {
       if (group.IsGrouped) {
         if (ImGui.CollapsingHeader($"{group.GroupName}###{group.ModId}")) {
           ImGui.Indent();
