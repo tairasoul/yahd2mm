@@ -182,6 +182,7 @@ class DownloadManager {
             associatedGuids = [guid]
           };
         }
+        manager.nexusReverse[guid] = l.modId;
         manager.modManager.SaveData();
         SaveData();
         HD2Mod[] mods = [ .. manager.modManager.mods ];
@@ -257,6 +258,7 @@ class DownloadManager {
             associatedGuids = [guid]
           };
         }
+        manager.nexusReverse[guid] = l.modId;
         manager.modManager.SaveData();
         SaveData();
         HD2Mod[] mods = [.. manager.modManager.mods];

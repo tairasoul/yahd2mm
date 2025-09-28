@@ -240,6 +240,7 @@ class Manager {
             associatedGuids = [guid]
           };
         }
+        nexusReverse[guid] = l.modId;
         modManager.SaveData();
         SaveData();
         HD2Mod[] mods = [ .. modManager.mods ];
@@ -315,6 +316,7 @@ class Manager {
             associatedGuids = [guid]
           };
         }
+        nexusReverse[guid] = l.modId;
         modManager.SaveData();
         SaveData();
         HD2Mod[] mods = [.. modManager.mods];
