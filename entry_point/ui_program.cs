@@ -40,6 +40,14 @@ partial class EntryPoint
     HttpResponseMessage message = httpTask.Result;
     return message.IsSuccessStatusCode;
   }
+
+  public static void OpenFile(string file) {
+    if (OperatingSystem.IsLinux())
+      System.Diagnostics.Process.Start("xdg-open", $"\"{file}\"");
+    else
+      System.Diagnostics.Process.Start("explorer.exe", $"\"{file}\"");
+  }
+
   public static void RunMain()
   {
     if (!Directory.Exists(ModManager.yahd2mm_basepath))
@@ -470,14 +478,7 @@ partial class EntryPoint
           ImGui.Indent();
           if (ImGui.Button("Open mod on Nexus"))
           {
-            if (OperatingSystem.IsLinux())
-            {
-              System.Diagnostics.Process.Start("xdg-open", $"\"https://www.nexusmods.com/helldivers2/mods/{group.ModId}\"");
-            }
-            else
-            {
-              System.Diagnostics.Process.Start("explorer.exe", $"\"https://www.nexusmods.com/helldivers2/mods/{group.ModId}\"");
-            }
+            OpenFile($"https://www.nexusmods.com/helldivers2/mods/{group.ModId}");
           }
           foreach (HD2Mod mod in group.mods) {
             DoMod(mod, false);
@@ -853,14 +854,7 @@ partial class EntryPoint
           ImGui.SameLine();
           if (ImGui.Button("Open mod on Nexus"))
           {
-            if (OperatingSystem.IsLinux())
-            {
-              System.Diagnostics.Process.Start("xdg-open", $"\"https://www.nexusmods.com/helldivers2/mods/{data.id}\"");
-            }
-            else
-            {
-              System.Diagnostics.Process.Start("explorer.exe", $"\"https://www.nexusmods.com/helldivers2/mods/{data.id}\"");
-            }
+            OpenFile($"https://www.nexusmods.com/helldivers2/mods/{data.id}");
           }
         }
       } 
@@ -1156,7 +1150,7 @@ partial class EntryPoint
         }
       }
       if (showFailure) {
-        ImGui.Text($"{DateTimeOffset.FromUnixTimeSeconds(failureTime):h:mm:ss tt} Key file does not exist or API key is invalid.");
+        ImGui.Text($"{DateTimeOffset.FromUnixTimeSeconds(failureTime):HH:mm:ss} Key file does not exist or API key is invalid.");
       }
       if (ImGui.Button("Key file created?"))
       {
