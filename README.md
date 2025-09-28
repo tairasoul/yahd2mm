@@ -103,6 +103,8 @@ properly deploy with priorities when enabling/disabling in mod list (might not b
 
 installer and updater
 
+general usability improvements (priority list preview, drag and drop on empty space to move mod to last position, etc.)
+
 ## things missing
 
 checking for nexus mod updates
