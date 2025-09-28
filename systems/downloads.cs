@@ -81,7 +81,7 @@ class DownloadManager {
 
   public DownloadManager(Manager manager) {
     client = new();
-    client.DefaultRequestHeaders.Add("User-Agent", "yahd2mm/0.4.1 .NET/9.0");
+    client.DefaultRequestHeaders.Add("User-Agent", "yahd2mm/0.5.0 .NET/9.0");
     client.DefaultRequestHeaders.Add("apikey", EntryPoint.APIKey);
     List<string> urlsToResume = [];
     foreach (ActiveDownload download in activeDownloads) {
