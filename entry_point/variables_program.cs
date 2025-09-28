@@ -16,6 +16,6 @@ partial class EntryPoint {
   internal static bool UseHardlinks;
   internal static string KeyFile = Path.Join(ModManager.yahd2mm_basepath, "key.txt");
   internal static string HD2PathFile = Path.Join(ModManager.yahd2mm_basepath, "path.txt");
-  private static bool NeedsKey = !File.Exists(KeyFile);
-  private static bool NeedsHD2DataPath = !(File.Exists(HD2PathFile) && Directory.Exists(File.ReadAllText(HD2PathFile).Trim()));
+  private static bool NeedsKey = !IsValidAPIKey();
+  private static bool NeedsHD2DataPath = !(File.Exists(HD2PathFile) && IsValidHD2Directory(File.ReadAllText(HD2PathFile).Trim()));
 }

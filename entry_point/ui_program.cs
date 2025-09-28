@@ -28,6 +28,18 @@ partial class EntryPoint
     }
     return true;
   }
+
+  private static bool IsValidAPIKey() {
+    if (!File.Exists(KeyFile)) return false;
+    string apiKey = File.ReadAllText(KeyFile).Trim();
+    string url = "https://api.nexusmods.com/v1/users/validate.json";
+    HttpClient tempClient = new();
+    tempClient.DefaultRequestHeaders.Add("apikey", apiKey);
+    Task<HttpResponseMessage> httpTask = tempClient.GetAsync(url);
+    httpTask.Wait();
+    HttpResponseMessage message = httpTask.Result;
+    return message.IsSuccessStatusCode;
+  }
   public static void RunMain()
   {
     if (!Directory.Exists(ModManager.yahd2mm_basepath))
@@ -172,7 +184,7 @@ partial class EntryPoint
       ImGui.OpenPopup("Key Prompt");
     }
     PromptForKey();
-    if (!NeedsHD2DataPath && !NeedsHD2DataPath && !IsAdministrator()) {
+    if (!NeedsHD2DataPath && !NeedsKey && !IsAdministrator()) {
       ImGui.OpenPopup("Admin Permissions");
     }
     PromptForAdmin();
@@ -1110,12 +1122,15 @@ partial class EntryPoint
     }
   }
 
+  private static bool showFailure = false;
+  private static long failureTime;
+
   private static void PromptForKey()
   {
     ImGui.SetNextWindowPos(ImGui.GetMainViewport().GetCenter(), ImGuiCond.Always, new Vector2(0.5f, 0.5f));
     if (ImGui.BeginPopupModal("Key Prompt", ImGuiWindowFlags.Popup | ImGuiWindowFlags.Modal | ImGuiWindowFlags.AlwaysAutoResize))
     {
-      ImGui.TextUnformatted("Nexus API key is required.");
+      ImGui.TextUnformatted("Nexus API key is missing or invalid.");
       if (ImGui.Button("Open API keys page (needs personal key, at the bottom)")) {
         if (OperatingSystem.IsLinux()) {
           System.Diagnostics.Process.Start("xdg-open", "\"https://next.nexusmods.com/settings/api-keys\"");
@@ -1125,18 +1140,27 @@ partial class EntryPoint
         }
       }
       ImGui.TextUnformatted($"Make a plaintext file at {KeyFile} and input your API key.");
-      if (ImGui.Button("Open folder"))
+      if (ImGui.Button("Open file"))
       {
         if (OperatingSystem.IsLinux()) {
-          System.Diagnostics.Process.Start("xdg-open", $"\"{ModManager.yahd2mm_basepath}\"");
+          using (FileStream f = File.Create(KeyFile)) {
+            StreamWriter w = new(f);
+            w.Write("Replace-With-Key");
+            w.Flush();
+          }
+          System.Diagnostics.Process.Start("xdg-open", $"\"{KeyFile}\"");
         }
         else {
-          System.Diagnostics.Process.Start("explorer.exe", $"\"{ModManager.yahd2mm_basepath}\"");
+          using (FileStream f = File.Create(KeyFile)) {}
+          System.Diagnostics.Process.Start("explorer.exe", $"\"{KeyFile}\"");
         }
+      }
+      if (showFailure) {
+        ImGui.Text($"{DateTimeOffset.FromUnixTimeSeconds(failureTime):h:mm:ss tt} Key file does not exist or API key is invalid.");
       }
       if (ImGui.Button("Key file created?"))
       {
-        if (File.Exists(KeyFile))
+        if (IsValidAPIKey())
         {
           NeedsKey = false;
           if (!NeedsHD2DataPath) {
@@ -1144,6 +1168,10 @@ partial class EntryPoint
             UseHardlinks = !OperatingSystem.IsLinux() && Path.GetPathRoot(File.ReadAllText(HD2PathFile).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
           }
           ImGui.CloseCurrentPopup();
+        }
+        else {
+          showFailure = true;
+          failureTime = new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds();
         }
       }
       ImGui.EndPopup();
