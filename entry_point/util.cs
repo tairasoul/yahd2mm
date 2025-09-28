@@ -52,7 +52,6 @@ partial class EntryPoint {
       KVSerializer ser = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
       Dictionary<string, LibraryFolder> folders = ser.Deserialize<Dictionary<string, LibraryFolder>>(File.OpenRead(libraryFoldersVDF));
       foreach (LibraryFolder folder in folders.Values) {
-        Console.WriteLine(folder.path);
         if (folder.apps.Keys.Contains("553850")) {
           string path = Path.Join(folder.path, "steamapps");
           AppState state = ser.Deserialize<AppState>(File.OpenRead(Path.Join(path, "appmanifest_553850.acf")));
