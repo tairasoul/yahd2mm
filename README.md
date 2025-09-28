@@ -101,6 +101,8 @@ also works with already-extracted mod folders, will move them instead (because c
 
 properly deploy with priorities when enabling/disabling in mod list
 
+installer and updater
+
 ## things missing
 
 checking for nexus mod updates
