@@ -2,14 +2,14 @@ using Semver;
 
 namespace yahd2mm;
 
-struct HDMSubOption {
+struct HDMSubOptionV1 {
   public string Name;
   public string Description;
   public string Image;
   public string[] Include;
 }
 
-struct HDMOption {
+struct HDMOptionV1 {
   public string Name;
   public string Description;
   public string Image;

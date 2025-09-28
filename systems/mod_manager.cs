@@ -498,7 +498,7 @@ partial class ModManager
     {
       if (opt is JObject jobj)
       {
-        HDMOption option = jobj.ToObject<HDMOption>();
+        HDMOptionV1 option = jobj.ToObject<HDMOptionV1>();
         foreach (string include in option.Include!)
         {
           if (string.IsNullOrEmpty(include) || string.IsNullOrWhiteSpace(include))
@@ -537,7 +537,7 @@ partial class ModManager
     {
       if (opt is JObject jobj)
       {
-        HDMOption option = jobj.ToObject<HDMOption>();
+        HDMOptionV1 option = jobj.ToObject<HDMOptionV1>();
         if (chosen.Contains(option.Name))
         {
           if (option.SubOptions != null)
@@ -606,7 +606,7 @@ partial class ModManager
     {
       if (opt is JObject jobj)
       {
-        HDMOption option = jobj.ToObject<HDMOption>();
+        HDMOptionV1 option = jobj.ToObject<HDMOptionV1>();
         if (chosen.Contains(currentPath + "/" + option.Name))
         {
           files.AddRange(option.Include!);
@@ -1053,7 +1053,7 @@ partial class ModManager
     {
       if (opt is JObject jobj)
       {
-        HDMOption option = jobj.ToObject<HDMOption>();
+        HDMOptionV1 option = jobj.ToObject<HDMOptionV1>();
         ManifestChoices choice = new()
         {
           Name = option.Name,
@@ -1115,7 +1115,7 @@ partial class ModManager
     {
       if (opt is JObject jobj)
       {
-        HDMSubOption option = jobj.ToObject<HDMSubOption>();
+        HDMSubOptionV1 option = jobj.ToObject<HDMSubOptionV1>();
         ManifestChoices choice = new()
         {
           Chosen = false,
@@ -1197,7 +1197,7 @@ partial class ModManager
     HD2Mod mod = new()
     {
       Version = SemVersion.Parse(state.Version, SemVersionStyles.Any),
-      Files = [.. Directory.EnumerateFiles(path).Where(static (v) => FileNumRegex.Match(v).Success)],
+      Files = [.. GetFolderRecursively(path).Where(static (v) => FileNumRegex.Match(v).Success)],
       Name = name,
       FolderName = name
     };
