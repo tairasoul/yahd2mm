@@ -7,7 +7,7 @@ partial class EntryPoint {
   public static Manager manager;
   internal static BaseFilesystemOperations queue;
   internal static LocalFileHolder files;
-  internal static string HD2Path;
+  internal static string HD2Path = string.Empty;
   internal static string APIKey;
   private static Sdl2Window window;
   private static GraphicsDevice gd;
@@ -17,5 +17,5 @@ partial class EntryPoint {
   internal static string KeyFile = Path.Join(ModManager.yahd2mm_basepath, "key.txt");
   internal static string HD2PathFile = Path.Join(ModManager.yahd2mm_basepath, "path.txt");
   private static bool NeedsKey = !IsValidAPIKey();
-  private static bool NeedsHD2DataPath = !(File.Exists(HD2PathFile) && IsValidHD2Directory(File.ReadAllText(HD2PathFile).Trim()));
+  private static bool NeedsHD2DataPath;
 }

@@ -22,32 +22,6 @@ struct HDMModGroup {
 
 partial class EntryPoint
 {
-  private static bool IsAdministrator() {
-    if (OperatingSystem.IsWindows()) {
-      return Environment.IsPrivilegedProcess || Path.GetPathRoot(File.ReadAllText(HD2PathFile).Trim()) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
-    }
-    return true;
-  }
-
-  private static bool IsValidAPIKey() {
-    if (!File.Exists(KeyFile)) return false;
-    string apiKey = File.ReadAllText(KeyFile).Trim();
-    string url = "https://api.nexusmods.com/v1/users/validate.json";
-    HttpClient tempClient = new();
-    tempClient.DefaultRequestHeaders.Add("apikey", apiKey);
-    Task<HttpResponseMessage> httpTask = tempClient.GetAsync(url);
-    httpTask.Wait();
-    HttpResponseMessage message = httpTask.Result;
-    return message.IsSuccessStatusCode;
-  }
-
-  public static void OpenFile(string file) {
-    if (OperatingSystem.IsLinux())
-      System.Diagnostics.Process.Start("xdg-open", $"\"{file}\"");
-    else
-      System.Diagnostics.Process.Start("explorer.exe", $"\"{file}\"");
-  }
-
   public static void RunMain()
   {
     if (!Directory.Exists(ModManager.yahd2mm_basepath))
@@ -55,6 +29,13 @@ partial class EntryPoint
       Directory.CreateDirectory(ModManager.yahd2mm_basepath);
     }
     Environment.CurrentDirectory = AppContext.BaseDirectory;
+    ScanForHD2Path();
+    if (HD2Path == string.Empty) {
+      NeedsHD2DataPath = !(File.Exists(HD2PathFile) && IsValidHD2Directory(File.ReadAllText(HD2PathFile).Trim()));
+    }
+    else {
+      NeedsHD2DataPath = false;
+    }
     Configuration.Default.PreferContiguousImageBuffers = true;
     bool existingClientExists = false;
     try
@@ -114,14 +95,6 @@ partial class EntryPoint
       gd.SubmitCommands(cl);
       gd.SwapBuffers(gd.MainSwapchain);
     }
-  }
-
-  private static void StartManager()
-  {
-    APIKey = File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "key.txt")).Trim();
-    HD2Path = File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim();
-    manager = new();
-    manager.BeginListeningPipe();
   }
 
   internal static bool SwitchToDownloads = false;
@@ -1086,13 +1059,6 @@ partial class EntryPoint
   }
 
   private static string DataPathStr = string.Empty;
-
-  private static bool IsValidHD2Directory(string path) {
-    bool exists = Directory.Exists(path);
-    bool foundBin = Directory.Exists(Path.Join(path, "..", "bin"));
-    bool foundHD2 = File.Exists(Path.Join(path, "..", "bin", "helldivers2.exe"));
-    return exists && foundBin && foundHD2;
-  }
 
   private static void PromptForDataPath() {
     if (ImGui.BeginPopupModal("Data Path", ImGuiWindowFlags.Popup | ImGuiWindowFlags.Modal | ImGuiWindowFlags.AlwaysAutoResize))

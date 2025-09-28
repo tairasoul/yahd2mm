@@ -14,9 +14,9 @@ else {
     baseText += ex.ToStringDemystified();
     if (!Directory.Exists(Path.Join(ModManager.yahd2mm_basepath, "crashes"))) {
       Directory.CreateDirectory(Path.Join(ModManager.yahd2mm_basepath, "crashes"));
-      DateTimeOffset baseOffset = new(DateTime.Now);
-      File.WriteAllText(Path.Join(ModManager.yahd2mm_basepath, "crashes", $"{baseOffset:dd-MM-yyyy-HH-mm-ss}"), baseText);
-      EntryPoint.OpenFile(Path.Join(ModManager.yahd2mm_basepath, "crashes", $"{baseOffset:dd-MM-yyyy-HH-mm-ss}"));
     }
+    DateTimeOffset baseOffset = new(DateTime.Now);
+    File.WriteAllText(Path.Join(ModManager.yahd2mm_basepath, "crashes", $"{baseOffset:dd-MM-yyyy-HH-mm-ss}"), baseText);
+    EntryPoint.OpenFile(Path.Join(ModManager.yahd2mm_basepath, "crashes", $"{baseOffset:dd-MM-yyyy-HH-mm-ss}"));
   }
 }
