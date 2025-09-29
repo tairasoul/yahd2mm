@@ -103,7 +103,7 @@ properly deploy with priorities when enabling/disabling in mod list (might not b
 
 installer and updater
 
-general usability improvements (priority list preview, drag and drop on empty space to move mod to last position, etc.)
+general usability improvements (priority list preview, anything extra that comes up)
 
 maybe try to add support for reshade mods?
   - could be interesting to try

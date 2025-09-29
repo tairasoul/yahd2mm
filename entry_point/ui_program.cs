@@ -224,14 +224,17 @@ partial class EntryPoint
   }
 
   private static void DoCompletedDownload(KeyValuePair<string, DownloadState> kvp) {
-    float width = ImGui.GetContentRegionAvail().X;
-    DownloadState progress = kvp.Value;
-    ImGui.BeginChild("download" + Path.GetFileName(progress.outputPath), new Vector2(width, 100), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
-    ImGui.TextUnformatted($"Filename: {Path.GetFileName(progress.outputPath)}");
-    ImGui.TextUnformatted($"Mod name: {manager.modNames[kvp.Key]}");
-    ImGui.TextUnformatted($"Status: {(progress.status == DownloadStatus.Done ? "Done" : "Cancelled")}");
-    ImGui.TextUnformatted($"Mod size: {FormatBytes(progress.totalBytes)}");
-    ImGui.EndChild();
+    if (manager.modNames.TryGetValue(kvp.Key, out string modName))
+    {
+      float width = ImGui.GetContentRegionAvail().X;
+      DownloadState progress = kvp.Value;
+      ImGui.BeginChild("download" + Path.GetFileName(progress.outputPath), new Vector2(width, 100), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
+      ImGui.TextUnformatted($"Filename: {Path.GetFileName(progress.outputPath)}");
+      ImGui.TextUnformatted($"Mod name: {modName}");
+      ImGui.TextUnformatted($"Status: {(progress.status == DownloadStatus.Done ? "Done" : "Cancelled")}");
+      ImGui.TextUnformatted($"Mod size: {FormatBytes(progress.totalBytes)}");
+      ImGui.EndChild();
+    }
   }
 
   private static int draggedIndex = -1;
@@ -241,6 +244,7 @@ partial class EntryPoint
       manager.modManager.ApplyPriorities();
     }
     ImGui.BeginChild("PriorityListChild", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders, ImGuiWindowFlags.AlwaysVerticalScrollbar);
+    bool dropHandled = false;
     for (int i = 0; i < manager.modManager.priorities.Length; i++)
     {
       string basename = manager.modManager.priorities[i];
@@ -273,7 +277,31 @@ partial class EntryPoint
             manager.modManager.priorities = [.. priorities];
             draggedIndex = -1;
             manager.modManager.SaveData();
+            dropHandled = true;
           }
+        }
+        ImGui.EndDragDropTarget();
+      }
+    }
+    if (draggedIndex != -1)
+    {
+      ImGui.Dummy(ImGui.GetContentRegionAvail());
+      if (!dropHandled && ImGui.BeginDragDropTarget())
+      {
+        bool isValid;
+        unsafe
+        {
+          isValid = ImGui.AcceptDragDropPayload("MOD_PRIORITY_ITEM").NativePtr != null;
+        }
+        if (isValid && draggedIndex != -1)
+        {
+          List<string> priorities = [.. manager.modManager.priorities];
+          string mod = priorities[draggedIndex];
+          priorities.RemoveAt(draggedIndex);
+          priorities.Add(mod);
+          manager.modManager.priorities = [.. priorities];
+          manager.modManager.SaveData();
+          draggedIndex = -1;
         }
         ImGui.EndDragDropTarget();
       }
