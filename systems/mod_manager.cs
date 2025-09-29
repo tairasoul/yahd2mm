@@ -996,7 +996,7 @@ partial class ModManager
     }
 
     HD2Mod[] arr = [.. mods];
-    Array.Sort(arr, (x, y) => string.Compare(modAliases[x.Guid], modAliases[y.Guid]));
+    Array.Sort(arr, static (x, y) => string.Compare(x.Name, y.Name));
     mods = [.. arr];
   }
 
