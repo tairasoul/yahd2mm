@@ -105,6 +105,9 @@ installer and updater
 
 general usability improvements (priority list preview, drag and drop on empty space to move mod to last position, etc.)
 
+maybe try to add support for reshade mods?
+  - could be interesting to try
+
 ## things missing
 
 checking for nexus mod updates
