@@ -1,3 +1,4 @@
+using System.Runtime.Versioning;
 using Microsoft.Win32;
 using ValveKeyValue;
 
@@ -68,6 +69,7 @@ partial class EntryPoint {
     return null;
   }
 
+  [SupportedOSPlatform("windows")]
   private static string? GetSteamPathWindows() {
     using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Valve\Steam")) {
       if (key != null)
@@ -103,7 +105,11 @@ partial class EntryPoint {
   }
 
   private static void ScanForHD2Path() {
-    string? libraryFoldersVDF = OperatingSystem.IsLinux() ? FindSteamLibraryFoldersVdf() : GetSteamPathWindows();
+    string? libraryFoldersVDF;
+    if (OperatingSystem.IsWindows())
+      libraryFoldersVDF = GetSteamPathWindows();
+    else
+      libraryFoldersVDF = FindSteamLibraryFoldersVdf();
     if (libraryFoldersVDF == null) return;
     KVSerializer ser = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
     Dictionary<string, LibraryFolder> folders = ser.Deserialize<Dictionary<string, LibraryFolder>>(File.OpenRead(libraryFoldersVDF));
