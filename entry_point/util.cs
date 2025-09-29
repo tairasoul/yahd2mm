@@ -69,13 +69,31 @@ partial class EntryPoint {
     using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Valve\Steam")) {
       if (key != null)
         if (key.GetValue("InstallPath") is string installPath && Directory.Exists(installPath))
-          return installPath;
+        {
+          string file = Path.Join(installPath, "steamapps", "libraryfolders.vdf");
+          if (!File.Exists(file)){
+            file = Path.Join(installPath, "config", "libraryfolders.vdf");
+          }
+          if (File.Exists(file)) {
+            return file;
+          }
+        }
     }
 
     using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam")) {
       if (key != null)
         if (key.GetValue("InstallPath") is string installPath && Directory.Exists(installPath))
-          return installPath;
+        {
+          string file = Path.Join(installPath, "steamapps", "libraryfolders.vdf");
+          if (!File.Exists(file))
+          {
+            file = Path.Join(installPath, "config", "libraryfolders.vdf");
+          }
+          if (File.Exists(file))
+          {
+            return file;
+          }
+        }
     }
 
     return null;
