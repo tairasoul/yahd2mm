@@ -10,6 +10,7 @@ using System.IO.Pipes;
 using System.Text;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using TinyDialogsNet;
 
 namespace yahd2mm;
 
@@ -317,6 +318,29 @@ partial class EntryPoint
       else if (OperatingSystem.IsLinux()) {
         System.Diagnostics.Process.Start("xdg-open", $"\"{LocalFileHolder.LocalFiles}\"");
       }
+    }
+    ImGui.SameLine();
+    if (ImGui.Button("Install All")) {
+      foreach (string file in files.localFiles)
+        manager.InstallFile(file);
+    }
+    ImGui.SameLine();
+    if (ImGui.Button("Delete All")) {
+      foreach (string file in files.localFiles)
+        queue.Delete(file);
+    }
+    ImGui.SameLine();
+    if (ImGui.Button("Select files not in folder")) {
+      Task.Run(() =>
+      {
+        FileFilter filter = new("Archive files", ["*.7z", "*.rar", "*.zip"]);
+        (bool cancelled, IEnumerable<string> paths) = TinyDialogs.OpenFileDialog("Open files", Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), true, filter);
+        if (!cancelled) {
+          foreach (string file in paths) {
+            manager.InstallFile(file);
+          }
+        }
+      });
     }
     ImGui.BeginChild("ScrollableLocalFiles", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders, ImGuiWindowFlags.AlwaysVerticalScrollbar);
     foreach (string file in files.localFiles) {
