@@ -412,6 +412,7 @@ partial class EntryPoint
       foreach (string modFile in Directory.EnumerateFiles(HD2Path).Where((v) => ModManager.FileNumRegex.Match(v).Success)) {
         queue.Delete(modFile);
       }
+      ModManager.existing.Clear();
       queue.WaitForEmpty();
     }
     ImGui.InputText("Search", ref SearchingString, 80, ImGuiInputTextFlags.EscapeClearsAll | ImGuiInputTextFlags.AlwaysOverwrite);

@@ -66,7 +66,7 @@ partial class ModManager
   internal AliasDictionary modAliases;
   internal Dictionary<string, ManifestChoices[]> processedChoices = [];
   private readonly Manager manager;
-  private static readonly List<string> existing = [];
+  internal static readonly List<string> existing = [];
 
   private void SetupExistingList() {
     foreach (FileAssociation association in fileRecords.Values.SelectMany((v) => v)) {
