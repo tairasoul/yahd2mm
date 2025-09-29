@@ -65,7 +65,7 @@ partial class ModManager
   internal string[] priorities = File.Exists(PriorityList) ? JsonConvert.DeserializeObject<string[]>(File.ReadAllText(PriorityList)) ?? [] : [];
   internal AliasDictionary modAliases;
   internal Dictionary<string, ManifestChoices[]> processedChoices = [];
-  private Manager manager;
+  private readonly Manager manager;
   private static readonly List<string> existing = [];
 
   private void SetupExistingList() {
@@ -818,7 +818,7 @@ partial class ModManager
         {
           if (newAssociations.TryGetValue(kvp.Key.associated.AssociatedMod, out FileAssociation assoc))
           {
-            string[][] sets = ProcessFilenamesIntoPatchSets([.. kvp.Value]);
+            string[][] sets = ProcessFilenamesIntoPatchSets([.. kvp.Value.OrderBy((v) => int.Parse(FileNumRegex.Match(v).Value))]);
             string[] newF = [];
             foreach (string[] set in sets)
             {
@@ -829,14 +829,13 @@ partial class ModManager
                 existing.Add(newFiles[i]);
                 _ = existing.Remove(set[i]);
               }
-              //EntryPoint.queue.WaitForEmpty();
               newF = [.. newF, .. newFiles];
             }
             newAssociations[kvp.Key.associated.AssociatedMod] = assoc with { Files = [.. assoc.Files, .. newF] };
           }
           else
           {
-            string[][] sets = ProcessFilenamesIntoPatchSets([.. kvp.Value]);
+            string[][] sets = ProcessFilenamesIntoPatchSets([.. kvp.Value.OrderBy((v) => int.Parse(FileNumRegex.Match(v).Value))]);
             string[] newF = [];
             foreach (string[] set in sets)
             {
@@ -847,7 +846,6 @@ partial class ModManager
                 existing.Add(newFiles[i]);
                 _ = existing.Remove(set[i]);
               }
-              //EntryPoint.queue.WaitForEmpty();
               newF = [.. newF, .. newFiles];
             }
             newAssociations[kvp.Key.associated.AssociatedMod] = new FileAssociation()

@@ -4,9 +4,9 @@ class LinuxFilesystemQueue : BaseFilesystemOperations {
   public override void StartThread() {
     Task.Run(async () =>
     {
-      await foreach (var operation in operations.Reader.ReadAllAsync())
+      await foreach (FilesystemOperation operation in operations.Reader.ReadAllAsync())
       {
-        var task = Task.Run(() =>
+        Task task = Task.Run(() =>
         {
           switch (operation.type)
           {
@@ -43,6 +43,7 @@ class LinuxFilesystemQueue : BaseFilesystemOperations {
             _inProgressTasks.Remove(task);
           }
         });
+        await task;
       }
     });
   }

@@ -412,6 +412,7 @@ partial class EntryPoint
       foreach (string modFile in Directory.EnumerateFiles(HD2Path).Where((v) => ModManager.FileNumRegex.Match(v).Success)) {
         queue.Delete(modFile);
       }
+      queue.WaitForEmpty();
     }
     ImGui.InputText("Search", ref SearchingString, 80, ImGuiInputTextFlags.EscapeClearsAll | ImGuiInputTextFlags.AlwaysOverwrite);
     ImGui.TextUnformatted("Priority list is ignored when enabling/disabling mods here, apply in Priorities!");
@@ -445,7 +446,8 @@ partial class EntryPoint
           return true;
         if (manager.nexusReverse.TryGetValue(mod.Guid, out string? value)) {
           NexusData resultData = manager.nexusIds[value];
-          return (resultData.associatedGuids.Length > 1 && resultData.modName.Contains(SearchingString, StringComparison.OrdinalIgnoreCase)) || manager.modManager.modAliases[mod.Guid].Contains(SearchingString, StringComparison.OrdinalIgnoreCase);
+          return (resultData.associatedGuids.Length > 1 && resultData.modName.Contains(SearchingString, StringComparison.OrdinalIgnoreCase))
+          || manager.modManager.modAliases[mod.Guid].Contains(SearchingString, StringComparison.OrdinalIgnoreCase);
         }
         return false;
       })
