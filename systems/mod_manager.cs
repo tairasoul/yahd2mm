@@ -428,7 +428,8 @@ partial class ModManager
       patchSets[key] = (patch, gpu, stream);
     }
 
-    string[][] result = [.. patchSets.OrderBy(static p => int.TryParse(p.Key.Split('|')[2], out int idx) ? idx : int.MaxValue).Select(static p => {
+    string[][] result = [.. patchSets.OrderBy(static p => int.TryParse(p.Key.Split('|')[2], out int idx) ? idx : int.MaxValue)
+    .Select(static p => {
         (string patch, string gpu, string stream) = p.Value;
         return new List<string>
         {
@@ -823,11 +824,11 @@ partial class ModManager
             foreach (string[] set in sets)
             {
               string[] newFiles = GetFirstValidPatchSet(set, 0);
+              existing.RemoveAll((v) => set.Contains(v));
+              existing.AddRange(newFiles);
               for (int i = 0; i < set.Length; i++)
               {
                 EntryPoint.queue.Move(set[i], newFiles[i]);
-                existing.Add(newFiles[i]);
-                _ = existing.Remove(set[i]);
               }
               newF = [.. newF, .. newFiles];
             }
@@ -840,11 +841,11 @@ partial class ModManager
             foreach (string[] set in sets)
             {
               string[] newFiles = GetFirstValidPatchSet(set, 0);
+              existing.RemoveAll((v) => set.Contains(v));
+              existing.AddRange(newFiles);
               for (int i = 0; i < set.Length; i++)
               {
                 EntryPoint.queue.Move(set[i], newFiles[i]);
-                existing.Add(newFiles[i]);
-                _ = existing.Remove(set[i]);
               }
               newF = [.. newF, .. newFiles];
             }
@@ -924,19 +925,21 @@ partial class ModManager
     foreach (KeyValuePair<string[], string> basename in basenames)
     {
       if (deleting.TryGetValue(basename.Value, out HashSet<string>? value))
+      {
+        existing.RemoveAll((v) => value.Contains(v));
         foreach (string file in value)
         {
           if (File.Exists(file))
           {
             EntryPoint.queue.Delete(file);
-            existing.Remove(file);
           }
         }
+      }
     }
     EntryPoint.queue.WaitForEmpty();
     foreach (string b in check)
     {
-      if (!fileRecords.TryGetValue(b, out FileAssociation[] assoc)) return;
+      if (!fileRecords.TryGetValue(b, out FileAssociation[]? assoc)) return;
       assoc = [.. assoc.Where((v) => v.AssociatedMod != mod.Guid)];
       if (assoc.Length > 0)
       {
@@ -993,7 +996,7 @@ partial class ModManager
     }
 
     HD2Mod[] arr = [.. mods];
-    Array.Sort(arr, static (x, y) => string.Compare(x.Name, y.Name));
+    Array.Sort(arr, (x, y) => string.Compare(modAliases[x.Guid], modAliases[y.Guid]));
     mods = [.. arr];
   }
 
