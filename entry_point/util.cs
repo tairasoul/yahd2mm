@@ -51,14 +51,17 @@ partial class EntryPoint {
   {
     string[] possiblePaths =
     [
-      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share", "Steam", "steamapps"),
-      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam", "steam", "steamapps"),
-      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam", "steamapps"),
-      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".var", "app", "com.valvesoftware.Steam", "data", "Steam", "steamapps")
+      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share", "Steam"),
+      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam", "steam"),
+      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
+      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".var", "app", "com.valvesoftware.Steam", "data", "Steam")
     ];
     foreach (string steamappsPath in possiblePaths)
     {
-      string vdfPath = Path.Combine(steamappsPath, "libraryfolders.vdf");
+      string vdfPath = Path.Combine(steamappsPath, "steamapps", "libraryfolders.vdf");
+      if (File.Exists(vdfPath))
+        return vdfPath;
+      vdfPath = Path.Combine(steamappsPath, "config", "libraryfolders.vdf");
       if (File.Exists(vdfPath))
         return vdfPath;
     }
