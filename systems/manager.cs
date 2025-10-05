@@ -104,7 +104,8 @@ class Manager {
       string guid;
       if (files.Length == 1 && Directory.Exists(files[0]))
       {
-        Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+        string dirPath = Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name);
+        Directory.Move(files[0], dirPath);
         Directory.Delete(outputDir);
         HD2Mod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
         guid = m.Guid;
@@ -216,7 +217,37 @@ class Manager {
         string guid;
         if (files.Length == 1 && Directory.Exists(files[0]))
         {
-          Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          string dirPath = Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name);
+          if (Directory.Exists(dirPath))
+          {
+            string folderName = new DirectoryInfo(dirPath).Name;
+            HD2Mod? mod = modManager.mods.Where(m => m.FolderName == folderName).Cast<HD2Mod?>().FirstOrDefault();
+            if (mod.HasValue)
+            {
+              string modGuid = mod.Value.Guid;
+              KeyValuePair<string, NexusData> entry = nexusIds.FirstOrDefault(kvp => kvp.Value.associatedGuids.Contains(modGuid));
+              if (entry.Key != null)
+              {
+                if (entry.Key == l.modId)
+                {
+                  Directory.Delete(dirPath, true);
+                }
+                else
+                {
+                  dirPath = $"{dirPath} ({l.modId})";
+                }
+              }
+              else
+              {
+                Directory.Delete(dirPath, true);
+              }
+            }
+            else
+            {
+              Directory.Delete(dirPath, true);
+            }
+          }
+          Directory.Move(files[0], dirPath);
           Directory.Delete(outputDir);
           HD2Mod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
           ModName = m.Name;
@@ -292,7 +323,37 @@ class Manager {
         string guid;
         if (files.Length == 1 && Directory.Exists(files[0]))
         {
-          Directory.Move(files[0], Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
+          string dirPath = Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name);
+          if (Directory.Exists(dirPath))
+          {
+            string folderName = new DirectoryInfo(dirPath).Name;
+            HD2Mod? mod = modManager.mods.Where(m => m.FolderName == folderName).Cast<HD2Mod?>().FirstOrDefault();
+            if (mod.HasValue)
+            {
+              string modGuid = mod.Value.Guid;
+              KeyValuePair<string, NexusData> entry = nexusIds.FirstOrDefault(kvp => kvp.Value.associatedGuids.Contains(modGuid));
+              if (entry.Key != null)
+              {
+                if (entry.Key == l.modId)
+                {
+                  Directory.Delete(dirPath, true);
+                }
+                else
+                {
+                  dirPath = $"{dirPath} ({l.modId})";
+                }
+              }
+              else
+              {
+                Directory.Delete(dirPath, true);
+              }
+            }
+            else
+            {
+              Directory.Delete(dirPath, true);
+            }
+          }
+          Directory.Move(files[0], dirPath);
           Directory.Delete(outputDir);
           HD2Mod m = modManager.ProcessMod(Path.Join(ModManager.ModHolder, new DirectoryInfo(files[0]).Name));
           ModName = m.Name;

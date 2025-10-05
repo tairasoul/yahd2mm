@@ -236,6 +236,15 @@ partial class EntryPoint
       ImGui.TextUnformatted($"Mod size: {FormatBytes(progress.totalBytes)}");
       ImGui.EndChild();
     }
+    else {
+      float width = ImGui.GetContentRegionAvail().X;
+      DownloadState progress = kvp.Value;
+      ImGui.BeginChild("download" + Path.GetFileName(progress.outputPath), new Vector2(width, 100), ImGuiChildFlags.Borders | ImGuiChildFlags.AlwaysAutoResize | ImGuiChildFlags.AutoResizeY | ImGuiChildFlags.AutoResizeX);
+      ImGui.TextUnformatted($"Filename: {Path.GetFileName(progress.outputPath)}");
+      ImGui.TextUnformatted($"Status: {(progress.status == DownloadStatus.Done ? "Done" : "Cancelled")}");
+      ImGui.TextUnformatted($"Mod size: {FormatBytes(progress.totalBytes)}");
+      ImGui.EndChild();
+    }
   }
 
   private static int draggedIndex = -1;
