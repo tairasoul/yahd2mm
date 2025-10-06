@@ -1175,7 +1175,6 @@ partial class ModManager
     HD2Mod mod = new()
     {
       ManifestV1 = manifest,
-      Version = SemVersion.Parse(state.Version, SemVersionStyles.Any),
       Name = manifest.Name,
       FolderName = GetName(path),
       Files = files
@@ -1197,7 +1196,6 @@ partial class ModManager
     };
     HD2Mod mod = new()
     {
-      Version = SemVersion.Parse(state.Version, SemVersionStyles.Any),
       Files = [.. GetFolderRecursively(path).Where(static (v) => FileNumRegex.Match(v).Success)],
       Name = name,
       FolderName = name

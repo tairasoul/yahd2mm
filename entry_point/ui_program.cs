@@ -429,7 +429,7 @@ partial class EntryPoint
     ImGui.InputText("Search", ref SearchingString, 80, ImGuiInputTextFlags.EscapeClearsAll | ImGuiInputTextFlags.AlwaysOverwrite);
     ImGui.TextUnformatted("Priority list is ignored when enabling/disabling mods here, apply in Priorities!");
     ImGui.BeginChild("ScrollableModlist", ImGui.GetContentRegionAvail(), ImGuiChildFlags.Borders, ImGuiWindowFlags.AlwaysVerticalScrollbar);
-    HD2Mod[] mods = [.. manager.modManager.mods];
+    HD2Mod[] mods = [.. manager.modManager.mods ];
     Array.Sort(mods, (x, y) => string.Compare(manager.modManager.modAliases[x.Guid], manager.modManager.modAliases[y.Guid]));
     mods = [.. mods.OrderByDescending((v) => manager.modManager.favourites.Contains(v.Guid))];
     if (SearchingString != "" && SearchingString != string.Empty)
@@ -534,7 +534,7 @@ partial class EntryPoint
       if (group.IsGrouped) {
         if (ImGui.CollapsingHeader($"{group.GroupName}###{group.ModId}")) {
           ImGui.Indent();
-          if (ImGui.Button("Open mod on Nexus"))
+          if (ImGui.Button($"Open mod on Nexus###OpenModOnNexus{group.ModId}"))
           {
             OpenFile($"https://www.nexusmods.com/helldivers2/mods/{group.ModId}");
           }
