@@ -65,6 +65,9 @@ partial class EntryPoint {
       vdfPath = Path.Combine(steamappsPath, "config", "libraryfolders.vdf");
       if (File.Exists(vdfPath))
         return vdfPath;
+      vdfPath = Path.Combine(steamappsPath, "libraryfolders.vdf");
+      if (File.Exists(vdfPath))
+        return vdfPath;
     }
     return null;
   }
@@ -78,6 +81,9 @@ partial class EntryPoint {
           string file = Path.Join(installPath, "steamapps", "libraryfolders.vdf");
           if (!File.Exists(file)){
             file = Path.Join(installPath, "config", "libraryfolders.vdf");
+          }
+          if (!File.Exists(file)) {
+            file = Path.Join(installPath, "libraryfolders.vdf");
           }
           if (File.Exists(file)) {
             return file;
@@ -93,6 +99,9 @@ partial class EntryPoint {
           if (!File.Exists(file))
           {
             file = Path.Join(installPath, "config", "libraryfolders.vdf");
+          }
+          if (!File.Exists(file)) {
+            file = Path.Join(installPath, "libraryfolders.vdf");
           }
           if (File.Exists(file))
           {
@@ -114,13 +123,17 @@ partial class EntryPoint {
     KVSerializer ser = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
     Dictionary<string, LibraryFolder> folders = ser.Deserialize<Dictionary<string, LibraryFolder>>(File.OpenRead(libraryFoldersVDF));
     foreach (LibraryFolder folder in folders.Values) {
-      if (folder.apps.ContainsKey("553850")) {
-        string path = Path.Join(folder.path, "steamapps");
-        AppState state = ser.Deserialize<AppState>(File.OpenRead(Path.Join(path, "appmanifest_553850.acf")));
+      string path = Path.Join(folder.path, "steamapps");
+      string manifestPath = Path.Join(path, "appmanifest_553850.acf");
+      if (File.Exists(manifestPath))
+      {
+        AppState state = ser.Deserialize<AppState>(File.OpenRead(manifestPath));
         path = Path.Join(path, "common", state.installdir);
-        if (Directory.Exists(path)) {
+        if (Directory.Exists(path))
+        {
           path = Path.Join(path, "data");
-          if (IsValidHD2Directory(path)) {
+          if (IsValidHD2Directory(path))
+          {
             HD2Path = path;
           }
         }
