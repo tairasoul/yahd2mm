@@ -5,153 +5,153 @@ using ValveKeyValue;
 namespace yahd2mm;
 
 partial class EntryPoint {
-  private static bool IsAdministrator() {
-    if (OperatingSystem.IsWindows()) {
-      return Environment.IsPrivilegedProcess || Path.GetPathRoot(HD2Path) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
-    }
-    return true;
-  }
+	private static bool IsAdministrator() {
+		if (OperatingSystem.IsWindows()) {
+			return Environment.IsPrivilegedProcess || Path.GetPathRoot(HD2Path) == Path.GetPathRoot(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData));
+		}
+		return true;
+	}
 
-  private static bool IsValidAPIKey() {
-    if (!File.Exists(KeyFile)) return false;
-    string apiKey = File.ReadAllText(KeyFile).Trim();
-    string url = "https://api.nexusmods.com/v1/users/validate.json";
-    HttpClient tempClient = new();
-    tempClient.DefaultRequestHeaders.Add("apikey", apiKey);
-    Task<HttpResponseMessage> httpTask = tempClient.GetAsync(url);
-    httpTask.Wait();
-    HttpResponseMessage message = httpTask.Result;
-    return message.IsSuccessStatusCode;
-  }
+	private static bool IsValidAPIKey() {
+		if (!File.Exists(KeyFile)) return false;
+		string apiKey = File.ReadAllText(KeyFile).Trim();
+		string url = "https://api.nexusmods.com/v1/users/validate.json";
+		HttpClient tempClient = new();
+		tempClient.DefaultRequestHeaders.Add("apikey", apiKey);
+		Task<HttpResponseMessage> httpTask = tempClient.GetAsync(url);
+		httpTask.Wait();
+		HttpResponseMessage message = httpTask.Result;
+		return message.IsSuccessStatusCode;
+	}
 
-  public static void OpenFile(string file) {
-    if (OperatingSystem.IsLinux())
-      System.Diagnostics.Process.Start("xdg-open", $"\"{file}\"");
-    else
-      System.Diagnostics.Process.Start("explorer.exe", $"\"{file}\"");
-  }
+	public static void OpenFile(string file) {
+		if (OperatingSystem.IsLinux())
+			System.Diagnostics.Process.Start("xdg-open", $"\"{file}\"");
+		else
+			System.Diagnostics.Process.Start("explorer.exe", $"\"{file}\"");
+	}
 
-  private static bool IsValidHD2Directory(string path) {
-    bool exists = Directory.Exists(path);
-    bool foundBin = Directory.Exists(Path.Join(path, "..", "bin"));
-    bool foundHD2 = File.Exists(Path.Join(path, "..", "bin", "helldivers2.exe"));
-    return exists && foundBin && foundHD2;
-  }
+	private static bool IsValidHD2Directory(string path) {
+		bool exists = Directory.Exists(path);
+		bool foundBin = Directory.Exists(Path.Join(path, "..", "bin"));
+		bool foundHD2 = File.Exists(Path.Join(path, "..", "bin", "helldivers2.exe"));
+		return exists && foundBin && foundHD2;
+	}
 
-  struct LibraryFolder {
-    public string path { get; set; }
-    public Dictionary<string, string> apps { get; set; }
-  }
+	struct LibraryFolder {
+		public string path { get; set; }
+		public Dictionary<string, string> apps { get; set; }
+	}
 
-  struct AppState {
-    public string installdir { get; set; }
-  }
+	struct AppState {
+		public string installdir { get; set; }
+	}
 
-  private static string? FindSteamLibraryFoldersVdf()
-  {
-    string[] possiblePaths =
-    [
-      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share", "Steam"),
-      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam", "steam"),
-      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
-      Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".var", "app", "com.valvesoftware.Steam", "data", "Steam")
-    ];
-    foreach (string steamappsPath in possiblePaths)
-    {
-      string vdfPath = Path.Combine(steamappsPath, "steamapps", "libraryfolders.vdf");
-      if (File.Exists(vdfPath))
-        return vdfPath;
-      vdfPath = Path.Combine(steamappsPath, "config", "libraryfolders.vdf");
-      if (File.Exists(vdfPath))
-        return vdfPath;
-      vdfPath = Path.Combine(steamappsPath, "libraryfolders.vdf");
-      if (File.Exists(vdfPath))
-        return vdfPath;
-    }
-    return null;
-  }
+	private static string? FindSteamLibraryFoldersVdf()
+	{
+		string[] possiblePaths =
+		[
+			Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "share", "Steam"),
+			Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".steam", "steam"),
+			Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".var", "app", "com.valvesoftware.Steam", ".local", "share", "Steam"),
+			Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".var", "app", "com.valvesoftware.Steam", "data", "Steam")
+		];
+		foreach (string steamappsPath in possiblePaths)
+		{
+			string vdfPath = Path.Combine(steamappsPath, "steamapps", "libraryfolders.vdf");
+			if (File.Exists(vdfPath))
+				return vdfPath;
+			vdfPath = Path.Combine(steamappsPath, "config", "libraryfolders.vdf");
+			if (File.Exists(vdfPath))
+				return vdfPath;
+			vdfPath = Path.Combine(steamappsPath, "libraryfolders.vdf");
+			if (File.Exists(vdfPath))
+				return vdfPath;
+		}
+		return null;
+	}
 
-  [SupportedOSPlatform("windows")]
-  private static string? GetSteamPathWindows() {
-    using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Valve\Steam")) {
-      if (key != null)
-        if (key.GetValue("InstallPath") is string installPath && Directory.Exists(installPath))
-        {
-          string file = Path.Join(installPath, "steamapps", "libraryfolders.vdf");
-          if (!File.Exists(file)){
-            file = Path.Join(installPath, "config", "libraryfolders.vdf");
-          }
-          if (!File.Exists(file)) {
-            file = Path.Join(installPath, "libraryfolders.vdf");
-          }
-          if (File.Exists(file)) {
-            return file;
-          }
-        }
-    }
+	[SupportedOSPlatform("windows")]
+	private static string? GetSteamPathWindows() {
+		using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Valve\Steam")) {
+			if (key != null)
+				if (key.GetValue("InstallPath") is string installPath && Directory.Exists(installPath))
+				{
+					string file = Path.Join(installPath, "steamapps", "libraryfolders.vdf");
+					if (!File.Exists(file)){
+						file = Path.Join(installPath, "config", "libraryfolders.vdf");
+					}
+					if (!File.Exists(file)) {
+						file = Path.Join(installPath, "libraryfolders.vdf");
+					}
+					if (File.Exists(file)) {
+						return file;
+					}
+				}
+		}
 
-    using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam")) {
-      if (key != null)
-        if (key.GetValue("InstallPath") is string installPath && Directory.Exists(installPath))
-        {
-          string file = Path.Join(installPath, "steamapps", "libraryfolders.vdf");
-          if (!File.Exists(file))
-          {
-            file = Path.Join(installPath, "config", "libraryfolders.vdf");
-          }
-          if (!File.Exists(file)) {
-            file = Path.Join(installPath, "libraryfolders.vdf");
-          }
-          if (File.Exists(file))
-          {
-            return file;
-          }
-        }
-    }
+		using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(@"Software\Valve\Steam")) {
+			if (key != null)
+				if (key.GetValue("InstallPath") is string installPath && Directory.Exists(installPath))
+				{
+					string file = Path.Join(installPath, "steamapps", "libraryfolders.vdf");
+					if (!File.Exists(file))
+					{
+						file = Path.Join(installPath, "config", "libraryfolders.vdf");
+					}
+					if (!File.Exists(file)) {
+						file = Path.Join(installPath, "libraryfolders.vdf");
+					}
+					if (File.Exists(file))
+					{
+						return file;
+					}
+				}
+		}
 
-    return null;
-  }
+		return null;
+	}
 
-  private static void ScanForHD2Path() {
-    string? libraryFoldersVDF;
-    if (OperatingSystem.IsWindows())
-      libraryFoldersVDF = GetSteamPathWindows();
-    else
-      libraryFoldersVDF = FindSteamLibraryFoldersVdf();
+	private static void ScanForHD2Path() {
+		string? libraryFoldersVDF;
+		if (OperatingSystem.IsWindows())
+			libraryFoldersVDF = GetSteamPathWindows();
+		else
+			libraryFoldersVDF = FindSteamLibraryFoldersVdf();
 		Console.WriteLine(libraryFoldersVDF);
-    if (libraryFoldersVDF == null) return;
+		if (libraryFoldersVDF == null) return;
 		KVSerializer ser = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
-    Dictionary<string, LibraryFolder> folders = ser.Deserialize<Dictionary<string, LibraryFolder>>(File.OpenRead(libraryFoldersVDF));
-    foreach (LibraryFolder folder in folders.Values) {
+		Dictionary<string, LibraryFolder> folders = ser.Deserialize<Dictionary<string, LibraryFolder>>(File.OpenRead(libraryFoldersVDF));
+		foreach (LibraryFolder folder in folders.Values) {
 			Console.WriteLine(folder.path);
 			string path = Path.Join(folder.path, "steamapps");
-      string manifestPath = Path.Join(path, "appmanifest_553850.acf");
+			string manifestPath = Path.Join(path, "appmanifest_553850.acf");
 			Console.WriteLine(manifestPath);
 			if (File.Exists(manifestPath))
-      {
-        AppState state = ser.Deserialize<AppState>(File.OpenRead(manifestPath));
+			{
+				AppState state = ser.Deserialize<AppState>(File.OpenRead(manifestPath));
 				path = Path.Join(path, "common", state.installdir);
 				Console.WriteLine(path);
-        if (Directory.Exists(path))
-        {
-          path = Path.Join(path, "data");
-				  Console.WriteLine(path);
-          if (IsValidHD2Directory(path))
-          {
-				    Console.WriteLine(path);
-            HD2Path = path;
-          }
-        }
-      }
-    }
-  }
+				if (Directory.Exists(path))
+				{
+					path = Path.Join(path, "data");
+					Console.WriteLine(path);
+					if (IsValidHD2Directory(path))
+					{
+						Console.WriteLine(path);
+						HD2Path = path;
+					}
+				}
+			}
+		}
+	}
 
-  private static void StartManager()
-  {
-    APIKey = File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "key.txt")).Trim();
-    if (HD2Path == string.Empty)
-      HD2Path = File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim();
-    manager = new();
-    manager.BeginListeningPipe();
-  }
+	private static void StartManager()
+	{
+		APIKey = File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "key.txt")).Trim();
+		if (HD2Path == string.Empty)
+			HD2Path = File.ReadAllText(Path.Join(ModManager.yahd2mm_basepath, "path.txt")).Trim();
+		manager = new();
+		manager.BeginListeningPipe();
+	}
 }
