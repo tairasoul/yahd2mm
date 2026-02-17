@@ -35,8 +35,7 @@ partial class EntryPoint {
     bool exists = Directory.Exists(path);
     bool foundBin = Directory.Exists(Path.Join(path, "..", "bin"));
     bool foundHD2 = File.Exists(Path.Join(path, "..", "bin", "helldivers2.exe"));
-    bool fileCountIsEnough = Directory.EnumerateFiles(path).Where((v) => !ModManager.FileNumRegex.Match(v).Success).Count() > 500;
-    return exists && foundBin && foundHD2 && fileCountIsEnough;
+    return exists && foundBin && foundHD2;
   }
 
   struct LibraryFolder {
@@ -119,21 +118,27 @@ partial class EntryPoint {
       libraryFoldersVDF = GetSteamPathWindows();
     else
       libraryFoldersVDF = FindSteamLibraryFoldersVdf();
+		Console.WriteLine(libraryFoldersVDF);
     if (libraryFoldersVDF == null) return;
-    KVSerializer ser = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
+		KVSerializer ser = KVSerializer.Create(KVSerializationFormat.KeyValues1Text);
     Dictionary<string, LibraryFolder> folders = ser.Deserialize<Dictionary<string, LibraryFolder>>(File.OpenRead(libraryFoldersVDF));
     foreach (LibraryFolder folder in folders.Values) {
-      string path = Path.Join(folder.path, "steamapps");
+			Console.WriteLine(folder.path);
+			string path = Path.Join(folder.path, "steamapps");
       string manifestPath = Path.Join(path, "appmanifest_553850.acf");
-      if (File.Exists(manifestPath))
+			Console.WriteLine(manifestPath);
+			if (File.Exists(manifestPath))
       {
         AppState state = ser.Deserialize<AppState>(File.OpenRead(manifestPath));
-        path = Path.Join(path, "common", state.installdir);
+				path = Path.Join(path, "common", state.installdir);
+				Console.WriteLine(path);
         if (Directory.Exists(path))
         {
           path = Path.Join(path, "data");
+				  Console.WriteLine(path);
           if (IsValidHD2Directory(path))
           {
+				    Console.WriteLine(path);
             HD2Path = path;
           }
         }
